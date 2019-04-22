@@ -7,6 +7,7 @@ import Scale from '../screens/home/Scale';
 import TitleAndMetaTags from '../components/TitleAndMetaTags';
 import Layout from '../components/layout';
 import Frameworks from '../screens/home/Frameworks';
+import Tweets from '../screens/home/Tweets';
 
 export default class HomePage extends React.Component {
   componentDidMount() {
@@ -40,6 +41,7 @@ export default class HomePage extends React.Component {
         <Features />
         <Scale />
         <RecentPublications />
+        <Tweets />
       </Layout>
     );
   }
