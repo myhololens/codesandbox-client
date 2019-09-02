@@ -1,4 +1,3 @@
-// @flow
 import Transpiler from '../';
 
 class JSONTranspiler extends Transpiler {

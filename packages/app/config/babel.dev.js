@@ -4,6 +4,8 @@ module.exports = {
   // This is a feature of `babel-loader` for webpack (not Babel itself).
   // It enables caching results in OS temporary directory for faster rebuilds.
   cacheDirectory: true,
+  cacheCompression: false,
+  compact: false,
   presets: [
     // Latest stable ECMAScript features
     require.resolve('@babel/preset-flow'),
@@ -11,7 +13,7 @@ module.exports = {
       require.resolve('@babel/preset-env'),
       {
         targets: {
-          ie: 11,
+          chrome: 70,
           // We currently minify with uglify
           // Remove after https://github.com/mishoo/UglifyJS2/issues/448
         },
@@ -22,9 +24,8 @@ module.exports = {
       },
     ],
     // JSX, Flow
-    require.resolve('@babel/preset-react'),
-
     require.resolve('@babel/preset-typescript'),
+    require.resolve('@babel/preset-react'),
   ].filter(Boolean),
   plugins: [
     require.resolve('@babel/plugin-transform-template-literals'),
@@ -37,5 +38,6 @@ module.exports = {
     require.resolve('babel-plugin-styled-components'),
     require.resolve('babel-plugin-macros'),
     require.resolve('babel-plugin-graphql-tag'),
+    require.resolve('@babel/plugin-transform-react-display-name'),
   ],
 };

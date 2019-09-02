@@ -1,6 +1,6 @@
 import React from 'react';
-import Alert from 'app/components/Alert';
-import { inject } from 'mobx-react';
+import { Alert } from 'app/components/Alert';
+import { inject } from 'app/componentConnectors';
 import { permanentlyDeleteSandboxes } from '../../../Dashboard/queries';
 
 function EmptyTrash({ signals, store }) {
@@ -14,7 +14,7 @@ function EmptyTrash({ signals, store }) {
         </span>
       }
       onCancel={() => signals.modalClosed()}
-      onDelete={async () => {
+      onConfirm={async () => {
         await permanentlyDeleteSandboxes(store.dashboard.trashSandboxIds);
         signals.modalClosed();
       }}

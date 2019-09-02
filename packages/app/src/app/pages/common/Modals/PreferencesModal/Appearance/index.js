@@ -1,5 +1,5 @@
 import React from 'react';
-import { inject, observer } from 'mobx-react';
+import { inject, observer } from 'app/componentConnectors';
 import themes from '@codesandbox/common/lib/themes';
 
 import PreferenceText from '@codesandbox/common/lib/components/Preference/PreferenceText';
@@ -60,8 +60,7 @@ function EditorSettings({ store, signals }) {
               </a>{' '}
               as default font, you can also use locally installed fonts
             </SubDescription>
-            {fontOptions.indexOf(store.preferences.settings.fontFamily) ===
-              -1 && (
+            {!fontOptions.includes(store.preferences.settings.fontFamily) && (
               <PreferenceText
                 style={{ marginTop: '1rem' }}
                 placeholder="Enter your custom font"

@@ -1,25 +1,24 @@
 import * as React from 'react';
-import { inject, observer } from 'mobx-react';
 import { Link } from 'react-router-dom';
-
-import Navigation from 'app/pages/common/Navigation';
+import { getSandboxName } from '@codesandbox/common/lib/utils/get-sandbox-name';
 import Fullscreen from '@codesandbox/common/lib/components/flex/Fullscreen';
-
-import QuickActions from 'app/pages/Sandbox/QuickActions';
-import Title from 'app/components/Title';
-import SubTitle from 'app/components/SubTitle';
-import Centered from '@codesandbox/common/lib/components/flex/Centered';
-import Skeleton from 'app/components/Skeleton';
 import Padding from '@codesandbox/common/lib/components/spacing/Padding';
+import Centered from '@codesandbox/common/lib/components/flex/Centered';
+import { inject, observer } from 'app/componentConnectors';
+import { Title } from 'app/components/Title';
+import { SubTitle } from 'app/components/SubTitle';
+import { Skeleton } from 'app/components/Skeleton';
+import Navigation from 'app/pages/common/Navigation';
 import SignInButton from 'app/pages/common/SignInButton';
-
+import QuickActions from 'app/pages/Sandbox/QuickActions';
+import { hasAuthToken } from 'app/utils/user';
 import Editor from '../Sandbox/Editor';
 import BlinkingDot from './BlinkingDot';
 
 class LivePage extends React.Component {
   loggedIn = this.props.store.hasLogIn;
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.initializeLive();
   }
 
@@ -35,7 +34,7 @@ class LivePage extends React.Component {
   }
 
   initializeLive = () => {
-    if (this.props.store.hasLogIn) {
+    if (hasAuthToken()) {
       this.loggedIn = true;
       this.props.signals.live.roomJoined({
         roomId: this.props.match.params.id,
@@ -46,7 +45,7 @@ class LivePage extends React.Component {
   componentDidUpdate(prevProps) {
     if (
       prevProps.match.params.id !== this.props.match.params.id ||
-      (this.props.store.hasLogIn && !this.loggedIn)
+      (hasAuthToken() && !this.loggedIn)
     ) {
       this.disconnectLive();
       this.initializeLive();
@@ -56,7 +55,7 @@ class LivePage extends React.Component {
   getContent = () => {
     const { store } = this.props;
 
-    if (!store.hasLogIn) {
+    if (!hasAuthToken()) {
       return (
         <React.Fragment>
           <div
@@ -173,7 +172,7 @@ class LivePage extends React.Component {
     const sandbox = store.editor.currentSandbox;
 
     if (sandbox) {
-      document.title = `${sandbox.title || sandbox.id} - CodeSandbox`;
+      document.title = `${getSandboxName(sandbox)} - CodeSandbox`;
     }
 
     return (

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { inject, observer } from 'mobx-react';
+import { inject, observer } from 'app/componentConnectors';
 import { sortBy } from 'lodash-es';
 import { HIDDEN_DIRECTORIES } from '@codesandbox/common/lib/templates/constants/files';
 import validateTitle from '../validateTitle';
@@ -48,7 +48,7 @@ class DirectoryChildren extends React.Component {
             x =>
               !(
                 x.directoryShortid == null &&
-                HIDDEN_DIRECTORIES.indexOf(x.title) > -1
+                HIDDEN_DIRECTORIES.includes(x.title)
               )
           )
           .map(dir => (

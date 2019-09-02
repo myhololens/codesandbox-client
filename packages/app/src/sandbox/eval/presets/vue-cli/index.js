@@ -30,11 +30,12 @@ const getFileNameFromVm = vm => {
       typeof vm === 'function' && vm.cid != null
         ? vm.options
         : vm._isVue
-          ? vm.$options || vm.constructor.options
-          : vm || {};
+        ? vm.$options || vm.constructor.options
+        : vm || {};
 
     return options.__file;
   }
+  return undefined;
 };
 
 export default function initialize() {

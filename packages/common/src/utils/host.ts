@@ -1,4 +1,4 @@
-const IS_LOCAL_SERVER = !!JSON.stringify(process.env.LOCAL_SERVER);
+const IS_LOCAL_SERVER = Boolean(JSON.stringify(process.env.LOCAL_SERVER));
 
 export default () => {
   if (IS_LOCAL_SERVER) {
@@ -10,7 +10,7 @@ export default () => {
   }
 
   if ('STAGING_BRANCH' in process.env) {
-    return `http://${process.env.STAGING_BRANCH}.cs.lbogdan.tk`;
+    return `https://${process.env.STAGING_BRANCH}.build.csb.dev`;
   }
 
   if ('ROOT_URL' in process.env) {

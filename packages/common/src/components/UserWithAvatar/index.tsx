@@ -9,7 +9,7 @@ export interface UserWithAvatarProps {
   username: string;
   name?: string;
   hideBadge?: boolean;
-  subscriptionSince?: string;
+  subscriptionSince?: number | Date;
   useBigName?: boolean;
 }
 
@@ -29,7 +29,9 @@ export function UserWithAvatar({
         <Names>
           {name && <div>{name}</div>}
           {username && (
-            <Username hasTwoNames={name && !!username}>{username}</Username>
+            <Username hasTwoNames={name && Boolean(username)}>
+              {username}
+            </Username>
           )}
         </Names>
         {subscriptionSince && (

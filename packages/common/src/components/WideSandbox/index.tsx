@@ -1,4 +1,4 @@
-import * as React from 'react';
+import React from 'react';
 
 import getIcon from '../../templates/icons';
 import getTemplate, { TemplateType } from '../../templates';
@@ -18,6 +18,7 @@ import {
 const getScreenshot = id =>
   `https://codesandbox.io/api/v1/sandboxes/${id}/screenshot.png`;
 
+/* eslint-disable camelcase */
 export type Props = {
   sandbox: {
     picks?: Array<{ title: string; description: string }>;
@@ -32,17 +33,17 @@ export type Props = {
     };
   };
   small?: boolean;
+  noHeight?: boolean;
   defaultHeight?: number;
   noMargin?: boolean;
-  pickSandbox: (
-    params: {
-      id: string;
-      title: string;
-      description: string;
-      screenshotUrl: string;
-    }
-  ) => void;
+  selectSandbox: (params: {
+    id: string;
+    title: string;
+    description: string;
+    screenshotUrl: string;
+  }) => void;
 };
+/* eslint-enable camelcase */
 
 export default class WideSandbox extends React.PureComponent<Props> {
   state = {
@@ -66,7 +67,7 @@ export default class WideSandbox extends React.PureComponent<Props> {
   };
 
   toggleOpen = () => {
-    this.props.pickSandbox({
+    this.props.selectSandbox({
       id: this.props.sandbox.id,
       title: this.getTitle(),
       description: this.getDescription(),
@@ -81,7 +82,13 @@ export default class WideSandbox extends React.PureComponent<Props> {
   };
 
   render() {
-    const { sandbox, small, noMargin, defaultHeight = 245 } = this.props;
+    const {
+      sandbox,
+      small,
+      noMargin,
+      noHeight,
+      defaultHeight = 245,
+    } = this.props;
 
     if (!sandbox) {
       return (
@@ -118,7 +125,7 @@ export default class WideSandbox extends React.PureComponent<Props> {
             this.setState({ imageLoaded: true });
           }}
         />
-        <SandboxInfo>
+        <SandboxInfo noHeight={noHeight}>
           <SandboxTitle color={template.color()}>
             {this.getTitle()}
           </SandboxTitle>

@@ -2,23 +2,19 @@
 import * as React from 'react';
 import { ThemeProvider } from 'styled-components';
 import { camelizeKeys } from 'humps';
-
 import getTemplateDefinition from '@codesandbox/common/lib/templates';
 import type { Module, Sandbox } from '@codesandbox/common/lib/types';
 import Centered from '@codesandbox/common/lib/components/flex/Centered';
-import Title from 'app/components/Title';
-import SubTitle from 'app/components/SubTitle';
 import { getSandboxOptions } from '@codesandbox/common/lib/url';
-
 import {
   findCurrentModule,
   findMainModule,
 } from '@codesandbox/common/lib/sandbox/modules';
-
+import { Title } from 'app/components/Title';
+import { SubTitle } from 'app/components/SubTitle';
 import Header from '../Header';
 import Content from '../Content';
 import Sidebar from '../Sidebar';
-
 import { Container, Fullscreen, Moving } from './elements';
 
 // Okay, this looks veeeery strange, we need this because Webpack has a bug currently
@@ -53,8 +49,8 @@ type State = {
 
 const isSafari = () => {
   const ua = navigator.userAgent.toLowerCase();
-  if (ua.indexOf('safari') !== -1) {
-    return ua.indexOf('chrome') === -1;
+  if (ua.includes('safari')) {
+    return !ua.includes('chrome');
   }
 
   return false;
@@ -91,8 +87,7 @@ export default class App extends React.PureComponent<
       runOnClick,
       verticalMode = window.innerWidth < window.innerHeight,
       tabs,
-    } =
-      props.embedOptions || getSandboxOptions(document.location.href);
+    } = props.embedOptions || getSandboxOptions(document.location.href);
 
     this.state = {
       notFound: false,
@@ -117,8 +112,8 @@ export default class App extends React.PureComponent<
         runOnClick === false
           ? false
           : runOnClick ||
-            navigator.appVersion.indexOf('X11') !== -1 ||
-            navigator.appVersion.indexOf('Linux') !== -1 ||
+            navigator.appVersion.includes('X11') ||
+            navigator.appVersion.includes('Linux') ||
             isSafari(),
       verticalMode,
       highlightedLines: highlightedLines || [],
@@ -182,7 +177,7 @@ export default class App extends React.PureComponent<
     }
   };
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     if (window.__SANDBOX_DATA__) {
       this.setState({ sandbox: camelizeKeys(window.__SANDBOX_DATA__) });
     } else {

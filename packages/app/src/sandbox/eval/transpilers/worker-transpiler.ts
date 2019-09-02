@@ -1,4 +1,5 @@
 import _debug from '@codesandbox/common/lib/utils/debug';
+import { dispatch, actions } from 'codesandbox-api';
 
 import Transpiler, { TranspilerResult } from './';
 import { parseWorkerError } from './utils/worker-error-handler';
@@ -83,7 +84,7 @@ export default abstract class WorkerTranspiler extends Transpiler {
       if (this.hasFS) {
         // Register file system that syncs with filesystem in manager
         // @ts-ignore
-        BrowserFS.FileSystem.WorkerFS.attachRemoteListener(worker);
+        BrowserFS.FileSystem.WorkerFS.attachRemoteListener(worker); // eslint-disable-line
         worker.postMessage({ type: 'initialize-fs', codesandbox: true });
       }
 
@@ -150,6 +151,10 @@ export default abstract class WorkerTranspiler extends Transpiler {
         if (data.type === 'warning') {
           loaderContext.emitWarning(data.warning);
           return;
+        }
+
+        if (data.type === 'clear-warnings') {
+          dispatch(actions.correction.clear(data.path, data.source));
         }
 
         if (data.type === 'resolve-async-transpiled-module') {
@@ -252,7 +257,7 @@ export default abstract class WorkerTranspiler extends Transpiler {
       worker: true,
       hasFS: this.hasFS,
       workerCount: this.workerCount,
-      initialized: !!this.initialized,
+      initialized: Boolean(this.initialized),
     }));
   }
 }

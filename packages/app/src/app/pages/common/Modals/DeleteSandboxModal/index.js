@@ -1,6 +1,6 @@
 import React from 'react';
-import Alert from 'app/components/Alert';
-import { inject } from 'mobx-react';
+import { Alert } from 'app/components/Alert';
+import { inject, hooksObserver } from 'app/componentConnectors';
 
 function DeleteSandboxModal({ signals }) {
   return (
@@ -8,9 +8,9 @@ function DeleteSandboxModal({ signals }) {
       title="Delete Sandbox"
       body={<span>Are you sure you want to delete this sandbox?</span>}
       onCancel={() => signals.modalClosed()}
-      onDelete={() => signals.workspace.sandboxDeleted()}
+      onConfirm={() => signals.workspace.sandboxDeleted()}
     />
   );
 }
 
-export default inject('signals')(DeleteSandboxModal);
+export default inject('signals')(hooksObserver(DeleteSandboxModal));

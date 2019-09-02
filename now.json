@@ -1,8 +1,12 @@
 {
+  "version": 2,
+  "name": "storybook",
+  "alias": "storybook-codesandbox",
   "builds": [
     {
-      "src": "packages/dynamic-pages/next.config.js",
-      "use": "@now/next"
+      "src": "package.json",
+      "use": "@now/static-build",
+      "config": { "distDir": "packages/common/public" }
     }
   ]
 }

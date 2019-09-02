@@ -1,4 +1,4 @@
-// @flow
+/* eslint-disable global-require, no-console, no-use-before-define */
 import { flatten } from 'lodash-es';
 import codeFrame from 'babel-code-frame';
 import macrosPlugin from 'babel-plugin-macros';
@@ -25,6 +25,7 @@ let fsLoading = false;
 let lastConfig = null;
 
 const IGNORED_MODULES = ['util', 'os'];
+const BrowserFS = self.BrowserFS;
 
 // Default in memory
 BrowserFS.configure({ fs: 'InMemory' }, () => {});
@@ -517,7 +518,9 @@ self.addEventListener('message', async event => {
         flattenedPresets.indexOf('@babel/preset-env') > -1 ||
         flattenedPresets.indexOf('@vue/app') > -1)
     ) {
-      const envPreset = await import(/* webpackChunkName: 'babel-preset-env' */ '@babel/preset-env');
+      const envPreset = await import(
+        /* webpackChunkName: 'babel-preset-env' */ '@babel/preset-env'
+      );
       Babel.registerPreset('env', envPreset);
     }
 
@@ -525,7 +528,9 @@ self.addEventListener('message', async event => {
       flattenedPlugins.indexOf('transform-vue-jsx') > -1 &&
       Object.keys(Babel.availablePlugins).indexOf('transform-vue-jsx') === -1
     ) {
-      const vuePlugin = await import(/* webpackChunkName: 'babel-plugin-transform-vue-jsx' */ 'babel-plugin-transform-vue-jsx');
+      const vuePlugin = await import(
+        /* webpackChunkName: 'babel-plugin-transform-vue-jsx' */ 'babel-plugin-transform-vue-jsx'
+      );
       Babel.registerPlugin('transform-vue-jsx', vuePlugin);
     }
 
@@ -533,7 +538,9 @@ self.addEventListener('message', async event => {
       flattenedPlugins.indexOf('jsx-pragmatic') > -1 &&
       Object.keys(Babel.availablePlugins).indexOf('jsx-pragmatic') === -1
     ) {
-      const pragmaticPlugin = await import(/* webpackChunkName: 'babel-plugin-jsx-pragmatic' */ 'babel-plugin-jsx-pragmatic');
+      const pragmaticPlugin = await import(
+        /* webpackChunkName: 'babel-plugin-jsx-pragmatic' */ 'babel-plugin-jsx-pragmatic'
+      );
       Babel.registerPlugin('jsx-pragmatic', pragmaticPlugin);
     }
 
@@ -552,63 +559,69 @@ self.addEventListener('message', async event => {
       flattenedPlugins.indexOf('transform-cx-jsx') > -1 &&
       Object.keys(Babel.availablePlugins).indexOf('transform-cx-jsx') === -1
     ) {
-      const cxJsxPlugin = await import(/* webpackChunkName: 'transform-cx-jsx' */ 'babel-plugin-transform-cx-jsx');
+      const cxJsxPlugin = await import(
+        /* webpackChunkName: 'transform-cx-jsx' */ 'babel-plugin-transform-cx-jsx'
+      );
       Babel.registerPlugin('transform-cx-jsx', cxJsxPlugin);
     }
   }
 
   try {
     await Promise.all(
-      flattenedPlugins.filter(p => typeof p === 'string').map(async p => {
-        const normalizedName = p
-          .replace('babel-plugin-', '')
-          .replace('@babel/plugin-', '');
-        if (
-          !Babel.availablePlugins[normalizedName] &&
-          !Babel.availablePlugins[p]
-        ) {
-          try {
-            await installPlugin(
-              Babel,
-              BrowserFS.BFSRequire,
-              p,
-              path,
-              !Babel.version.startsWith('6')
-            );
-          } catch (e) {
-            throw new Error(
-              `Could not find/install babel plugin '${p}': ${e.message}`
-            );
+      flattenedPlugins
+        .filter(p => typeof p === 'string')
+        .map(async p => {
+          const normalizedName = p
+            .replace('babel-plugin-', '')
+            .replace('@babel/plugin-', '');
+          if (
+            !Babel.availablePlugins[normalizedName] &&
+            !Babel.availablePlugins[p]
+          ) {
+            try {
+              await installPlugin(
+                Babel,
+                BrowserFS.BFSRequire,
+                p,
+                path,
+                !Babel.version.startsWith('6')
+              );
+            } catch (e) {
+              throw new Error(
+                `Could not find/install babel plugin '${p}': ${e.message}`
+              );
+            }
           }
-        }
-      })
+        })
     );
 
     await Promise.all(
-      flattenedPresets.filter(p => typeof p === 'string').map(async p => {
-        const normalizedName = p
-          .replace('babel-preset-', '')
-          .replace('@babel/preset-', '');
+      flattenedPresets
+        .filter(p => typeof p === 'string')
+        .map(async p => {
+          const normalizedName = p
+            .replace('babel-preset-', '')
+            .replace('@babel/preset-', '');
 
-        if (
-          !Babel.availablePresets[normalizedName] &&
-          !Babel.availablePresets[p]
-        ) {
-          try {
-            await installPreset(
-              Babel,
-              BrowserFS.BFSRequire,
-              p,
-              path,
-              !Babel.version.startsWith('6')
-            );
-          } catch (e) {
-            throw new Error(
-              `Could not find/install babel preset '${p}': ${e.message}`
-            );
+          if (
+            !Babel.availablePresets[normalizedName] &&
+            !Babel.availablePresets[p]
+          ) {
+            try {
+              await installPreset(
+                Babel,
+                BrowserFS.BFSRequire,
+                p,
+                path,
+                !Babel.version.startsWith('6')
+              );
+            } catch (e) {
+              throw new Error(
+                `Could not find/install babel preset '${p}': ${e.message}`
+              );
+            }
           }
-        }
-      })
+        })
     );
 
     await compile(

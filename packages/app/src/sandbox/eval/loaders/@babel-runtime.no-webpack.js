@@ -1,3 +1,4 @@
+/* eslint-disable */
 var e,
   r =
     (e = require('path')) && 'object' == typeof e && 'default' in e
@@ -328,11 +329,11 @@ function D(e) {
   'method' === e.kind
     ? (r = { value: e.value, writable: !0, configurable: !0, enumerable: !1 })
     : 'get' === e.kind
-      ? (r = { get: e.value, configurable: !0, enumerable: !1 })
-      : 'set' === e.kind
-        ? (r = { set: e.value, configurable: !0, enumerable: !1 })
-        : 'field' === e.kind &&
-          (r = { configurable: !0, writable: !0, enumerable: !0 });
+    ? (r = { get: e.value, configurable: !0, enumerable: !1 })
+    : 'set' === e.kind
+    ? (r = { set: e.value, configurable: !0, enumerable: !1 })
+    : 'field' === e.kind &&
+      (r = { configurable: !0, writable: !0, enumerable: !0 });
   var t = {
     kind: 'field' === e.kind ? 'field' : 'method',
     key: e.key,
@@ -1138,10 +1139,10 @@ var Re = function(e) {
                 'break' === e.type || 'continue' === e.type
                   ? (this.next = e.arg)
                   : 'return' === e.type
-                    ? ((this.rval = this.arg = e.arg),
-                      (this.method = 'return'),
-                      (this.next = 'end'))
-                    : 'normal' === e.type && r && (this.next = r),
+                  ? ((this.rval = this.arg = e.arg),
+                    (this.method = 'return'),
+                    (this.next = 'end'))
+                  : 'normal' === e.type && r && (this.next = r),
                 y
               );
             },

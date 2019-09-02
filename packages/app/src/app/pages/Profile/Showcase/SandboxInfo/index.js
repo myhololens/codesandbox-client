@@ -1,9 +1,8 @@
 import React from 'react';
-
+import { getSandboxName } from '@codesandbox/common/lib/utils/get-sandbox-name';
 import { sandboxUrl } from '@codesandbox/common/lib/utils/url-generator';
 import Row from '@codesandbox/common/lib/components/flex/Row';
-import Stat from 'app/components/Stat';
-
+import { Stat } from 'app/components/Stat';
 import SvgButton from './play-button.svg';
 import {
   Container,
@@ -19,7 +18,7 @@ function SandboxInfo({ sandbox }) {
     <Container>
       <Row alignItems="center">
         <Title>
-          {sandbox.title || 'Undefined'} <Like sandbox={sandbox} />
+          {getSandboxName(sandbox)} <Like sandbox={sandbox} />
         </Title>
       </Row>
       <Row alignItems="flex-start">

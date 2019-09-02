@@ -21,7 +21,7 @@ import Manager, { HMRStatus } from './manager';
 import HMR from './hmr';
 import { splitQueryFromPath } from './utils/query-path';
 
-declare var BrowserFS: any;
+declare const BrowserFS: any;
 
 const debug = _debug('cs:compiler:transpiled-module');
 
@@ -68,6 +68,7 @@ export type SerializedTranspiledModule = {
   asyncDependencies: Array<string>;
   transpilationDependencies: Array<string>;
   transpilationInitiators: Array<string>;
+  warnings: WarningStructure[];
 };
 
 /* eslint-disable no-use-before-define */
@@ -614,7 +615,6 @@ export default class TranspiledModule {
     } else {
       const transpilers = manager.preset.getLoaders(this.module, this.query);
 
-      const t = Date.now();
       for (let i = 0; i < transpilers.length; i += 1) {
         const transpilerConfig = transpilers[i];
         const loaderContext = this.getLoaderContext(
@@ -628,25 +628,12 @@ export default class TranspiledModule {
           .join('!');
 
         try {
+          const startTime = Date.now();
           const {
             transpiledCode,
             sourceMap,
           } = await transpilerConfig.transpiler.transpile(code, loaderContext); // eslint-disable-line no-await-in-loop
-
-          if (this.warnings.length) {
-            this.warnings.forEach(warning => {
-              console.warn(warning.message); // eslint-disable-line no-console
-              dispatch(
-                actions.correction.show(warning.message, {
-                  line: warning.lineNumber,
-                  column: warning.columnNumber,
-                  path: warning.path,
-                  source: warning.source,
-                  severity: 'warning',
-                })
-              );
-            });
-          }
+          debug(`Transpiled '${this.getId()}' in ${Date.now() - startTime}ms`);
 
           if (this.errors.length) {
             throw this.errors[0];
@@ -666,8 +653,9 @@ export default class TranspiledModule {
 
           throw e;
         }
-        debug(`Transpiled '${this.getId()}' in ${Date.now() - t}ms`);
       }
+
+      this.logWarnings();
     }
 
     const sourceEqualsCompiled = code === this.module.code;
@@ -692,9 +680,8 @@ export default class TranspiledModule {
     ) {
       const hasHMR = manager.preset
         .getLoaders(this.module, this.query)
-        .some(
-          t =>
-            t.transpiler.HMREnabled == null ? true : t.transpiler.HMREnabled
+        .some(t =>
+          t.transpiler.HMREnabled == null ? true : t.transpiler.HMREnabled
         );
 
       if (!hasHMR) {
@@ -730,6 +717,23 @@ export default class TranspiledModule {
 
     return this;
   }
+
+  logWarnings = () => {
+    if (this.warnings.length) {
+      this.warnings.forEach(warning => {
+        console.warn(warning.message); // eslint-disable-line no-console
+        dispatch(
+          actions.correction.show(warning.message, {
+            line: warning.lineNumber,
+            column: warning.columnNumber,
+            path: warning.path,
+            source: warning.source,
+            severity: warning.severity || 'warning',
+          })
+        );
+      });
+    }
+  };
 
   evaluate(
     manager: Manager,
@@ -1020,9 +1024,8 @@ export default class TranspiledModule {
     if (
       manager.preset
         .getLoaders(this.module, this.query)
-        .some(
-          t =>
-            t.transpiler.cacheable == null ? false : !t.transpiler.cacheable
+        .some(t =>
+          t.transpiler.cacheable == null ? false : !t.transpiler.cacheable
         )
     ) {
       debug(`Removing '${this.getId()}' cache as it's not cacheable.`);
@@ -1043,7 +1046,7 @@ export default class TranspiledModule {
       isEntry: this.isEntry,
       isTestFile: this.isTestFile,
 
-      sourceEqualsCompiled: sourceEqualsCompiled,
+      sourceEqualsCompiled,
       childModules: this.childModules.map(m => m.getId()),
       dependencies: Array.from(this.dependencies).map(m => m.getId()),
       initiators: Array.from(this.initiators).map(m => m.getId()),
@@ -1056,6 +1059,7 @@ export default class TranspiledModule {
       asyncDependencies: await Promise.all(
         Array.from(this.asyncDependencies).map(m => m.then(x => x.getId()))
       ),
+      warnings: this.warnings.map(war => war.serialize()),
     };
 
     if (!sourceEqualsCompiled || !optimizeForSize) {
@@ -1113,12 +1117,10 @@ export default class TranspiledModule {
         } else {
           tModule.dependencies.add(this);
         }
+      } else if (transpilation) {
+        tModule.transpilationInitiators.add(this);
       } else {
-        if (transpilation) {
-          tModule.transpilationInitiators.add(this);
-        } else {
-          tModule.initiators.add(this);
-        }
+        tModule.initiators.add(this);
       }
 
       return tModule;
@@ -1139,9 +1141,12 @@ export default class TranspiledModule {
     data.transpilationInitiators.forEach((depId: string) => {
       this.transpilationInitiators.add(loadModule(depId, true, true));
     });
-
     data.asyncDependencies.forEach((depId: string) => {
       this.asyncDependencies.push(Promise.resolve(loadModule(depId)));
     });
+
+    this.warnings =
+      data.warnings.map(war => new ModuleWarning(this, war)) || [];
+    this.logWarnings();
   }
 }

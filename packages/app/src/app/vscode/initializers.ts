@@ -35,6 +35,7 @@ export function initializeSettings() {
           'editor.tabSize': 2,
           'editor.minimap.enabled': false,
           'workbench.editor.openSideBySideDirection': 'down',
+          'svelte.plugin.typescript.diagnostics.enable': false,
         },
         null,
         2
@@ -105,8 +106,9 @@ export function setVimExtensionEnabled(vimEnabled: boolean) {
   } else {
     // Auto disable vim extension
     if (
-      localStorage.getItem('vs-global://extensionsIdentifiers/disabled') ==
-      undefined
+      [null, undefined].includes(
+        localStorage.getItem('vs-global://extensionsIdentifiers/disabled')
+      )
     ) {
       localStorage.setItem(
         'vs-global://extensionsIdentifiers/disabled',

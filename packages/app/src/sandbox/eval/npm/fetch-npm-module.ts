@@ -1,4 +1,3 @@
-
 import * as pathUtils from '@codesandbox/common/lib/utils/path';
 import resolve from 'browser-resolve';
 import DependencyNotFoundError from 'sandbox-hooks/errors/dependency-not-found-error';
@@ -28,12 +27,33 @@ type MetaFiles = Array<{
 }>;
 
 const metas: Metas = {};
-let combinedMetas: Meta = {};
+export let combinedMetas: Meta = {}; // eslint-disable-line
 const normalizedMetas: { [key: string]: Meta } = {};
 const packages: Packages = {};
 
-export function getCombinedMetas() {
-  return combinedMetas;
+async function fetchWithRetries(url: string, retries = 3): Promise<string> {
+  const doFetch = () =>
+    window.fetch(url).then(x => {
+      if (x.ok) {
+        return x.text();
+      }
+
+      throw new Error(`Could not fetch ${url}`);
+    });
+
+  for (let i = 0; i < retries; i++) {
+    try {
+      // eslint-disable-next-line
+      return await doFetch();
+    } catch (e) {
+      console.error(e);
+      if (i === retries - 1) {
+        throw e;
+      }
+    }
+  }
+
+  throw new Error('Could not fetch');
 }
 
 export function setCombinedMetas(givenCombinedMetas: Meta) {
@@ -82,13 +102,17 @@ function getUnpkgUrl(name: string, version: string, forceJsDelivr?: boolean) {
   const nameWithoutAlias = name.replace(ALIAS_REGEX, '');
 
   return TEMP_USE_JSDELIVR || forceJsDelivr
-    ? `https://unpkg.com/${nameWithoutAlias}@${version}`
-    : `https://cdn.jsdelivr.net/npm/${nameWithoutAlias}@${version}`;
+    ? `https://cdn.jsdelivr.net/npm/${nameWithoutAlias}@${version}`
+    : `https://unpkg.com/${nameWithoutAlias}@${version}`;
 }
 
-function getMeta(name: string, packageJSONPath: string, version: string) {
+function getMeta(
+  name: string,
+  packageJSONPath: string | null,
+  version: string
+) {
   const nameWithoutAlias = name.replace(ALIAS_REGEX, '');
-  const id = `${packageJSONPath}@${version}`;
+  const id = `${packageJSONPath || name}@${version}`;
   if (metas[id]) {
     return metas[id];
   }
@@ -127,27 +151,13 @@ function downloadDependency(
     ? `https://cdn.jsdelivr.net/gh/${depVersion}${relativePath}`
     : `${getUnpkgUrl(depName, depVersion)}${relativePath}`;
 
-  packages[path] = window
-    .fetch(url)
-    .then(x => {
-      if (x.ok) {
-        return x.text();
-      }
-
-      throw new Error(`Could not find module ${path}`);
-    })
+  packages[path] = fetchWithRetries(url)
     .catch(err => {
       if (!isGitHub) {
         // Fallback to jsdelivr
-        return fetch(
+        return fetchWithRetries(
           `${getUnpkgUrl(depName, depVersion, true)}${relativePath}`
-        ).then(x2 => {
-          if (x2.ok) {
-            return x2.text();
-          }
-
-          throw new Error(`Could not find module ${path}`);
-        });
+        );
       }
 
       throw err;
@@ -173,7 +183,7 @@ function resolvePath(
   const isFile = (p, c, cb) => {
     const callback = cb || c;
 
-    callback(null, !!manager.transpiledModules[p] || !!meta[p]);
+    callback(null, Boolean(manager.transpiledModules[p]) || Boolean(meta[p]));
   };
 
   return new Promise((res, reject) => {
@@ -256,12 +266,27 @@ function resolvePath(
   });
 }
 
+type DependencyVersionResult =
+  | {
+      version: string;
+      packageJSONPath: string;
+    }
+  | {
+      version: string;
+      packageJSONPath: null;
+    }
+  | {
+      version: string;
+      name: string | null;
+      packageJSONPath: null;
+    };
+
 async function findDependencyVersion(
   currentTModule: TranspiledModule,
   manager: Manager,
   defaultExtensions: Array<string> = ['js', 'jsx', 'json'],
   dependencyName: string
-) {
+): Promise<DependencyVersionResult | null> {
   const manifest = manager.manifest;
 
   try {
@@ -275,10 +300,10 @@ async function findDependencyVersion(
     const packageJSON =
       manager.transpiledModules[foundPackageJSONPath] &&
       manager.transpiledModules[foundPackageJSONPath].module.code;
-    const { version, name } = JSON.parse(packageJSON);
+    const { version } = JSON.parse(packageJSON);
 
     if (packageJSON !== '//empty.js') {
-      return { packageJSONPath: foundPackageJSONPath, version, name };
+      return { packageJSONPath: foundPackageJSONPath, version };
     }
   } catch (e) {
     /* do nothing */
@@ -324,7 +349,7 @@ export default async function fetchModule(
     dependencyName
   );
 
-  if (!versionInfo) {
+  if (versionInfo === null) {
     throw new DependencyNotFoundError(path);
   }
 

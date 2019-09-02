@@ -1,4 +1,3 @@
-// @flow
 import Transpiler from '../';
 import { LoaderContext } from '../../../eval/transpiled-module';
 

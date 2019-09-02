@@ -4,6 +4,8 @@ import { BatchHttpLink } from 'apollo-link-batch-http';
 import { setContext } from 'apollo-link-context';
 import { InMemoryCache } from 'apollo-cache-inmemory';
 import { onError } from 'apollo-link-error';
+import { notificationState } from '@codesandbox/common/lib/utils/notifications';
+import { NotificationStatus } from '@codesandbox/notifications';
 
 const httpLink = new BatchHttpLink({
   uri: '/api/graphql',
@@ -22,27 +24,28 @@ const authLink = setContext((_, { headers }) => {
 });
 
 const absintheAfterware = new ApolloLink((operation, forward) =>
-  forward(operation).map(result => {
-    /* eslint-disable no-param-reassign */
-    result.errors = result.payload.errors;
-    result.data = result.payload.data;
-    /* eslint-enable */
-
-    return result;
-  })
+  forward(operation).map(({ payload, ...result }) => ({
+    ...result,
+    errors: payload.errors,
+    data: payload.data,
+  }))
 );
 
 const errorHandler = onError(({ graphQLErrors, networkError }) => {
   if (graphQLErrors) {
-    if (window.showNotification) {
-      graphQLErrors.forEach(({ message }) => {
-        window.showNotification(message, 'error');
+    graphQLErrors.forEach(({ message }) => {
+      notificationState.addNotification({
+        message,
+        status: NotificationStatus.ERROR,
       });
-    }
+    });
   }
 
   if (networkError) {
-    window.showNotification(`Network Error: ${networkError}`, 'error');
+    notificationState.addNotification({
+      message: `Network Error: ${networkError}`,
+      status: NotificationStatus.ERROR,
+    });
   }
 });
 

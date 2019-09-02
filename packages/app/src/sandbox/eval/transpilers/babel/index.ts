@@ -1,6 +1,5 @@
-// @flow
 // @ts-ignore
-import BabelWorker from 'worker-loader?publicPath=/&name=babel-transpiler.[hash:8].worker.js!./worker/index.js';
+import BabelWorker from 'worker-loader?publicPath=/&name=babel-transpiler.[hash:8].worker.js!./worker/index';
 import { isBabel7 } from '@codesandbox/common/lib/utils/is-babel-7';
 
 import regexGetRequireStatements from './worker/simple-get-require-statements';

@@ -4,17 +4,21 @@ import resolve from 'browser-resolve';
 
 import * as pathUtils from '@codesandbox/common/lib/utils/path';
 import _debug from '@codesandbox/common/lib/utils/debug';
+import { getGlobal } from '@codesandbox/common/lib/utils/global';
+import { ParsedConfigurationFiles } from '@codesandbox/common/lib/templates/template';
 import DependencyNotFoundError from 'sandbox-hooks/errors/dependency-not-found-error';
 import ModuleNotFoundError from 'sandbox-hooks/errors/module-not-found-error';
 
 import { Module } from './entities/module';
-import TranspiledModule, { ChildModule } from './transpiled-module';
-import { SerializedTranspiledModule } from './transpiled-module';
+import TranspiledModule, {
+  ChildModule,
+  SerializedTranspiledModule,
+} from './transpiled-module';
 import Preset from './presets';
 import { SCRIPT_VERSION } from '../';
 import fetchModule, {
-  getCombinedMetas,
   setCombinedMetas,
+  combinedMetas,
 } from './npm/fetch-npm-module';
 import coreLibraries from './npm/get-core-libraries';
 import getDependencyName from './utils/get-dependency-name';
@@ -24,17 +28,15 @@ import { packageFilter } from './utils/resolve-utils';
 
 import { ignoreNextCache, deleteAPICache, clearIndexedDBCache } from './cache';
 import { shouldTranspile } from './transpilers/babel/check';
-import { getGlobal } from '@codesandbox/common/lib/utils/global';
-import { ParsedConfigurationFiles } from '@codesandbox/common/lib/templates/template';
 import { splitQueryFromPath } from './utils/query-path';
 
-declare var BrowserFS: any;
+declare const BrowserFS: any;
 
 type Externals = {
   [name: string]: string;
 };
 
-type ModuleObject = {
+export type ModuleObject = {
   [path: string]: Module;
 };
 
@@ -158,6 +160,7 @@ export default class Manager {
 
     getGlobal().manager = this;
     if (process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
       console.log(this);
     }
 
@@ -223,18 +226,20 @@ export default class Manager {
     if (this.stage === 'transpilation') {
       // In transpilation phase we can afford to download the file if not found,
       // because we're async. That's why we also include the meta here.
-      returnValue = this.transpiledModules[p] || getCombinedMetas()[p];
+      returnValue = this.transpiledModules[p] || combinedMetas[p];
     } else {
       returnValue = this.transpiledModules[p];
     }
 
     if (returnValue == null && hasCallback && this.fileResolver) {
       return this.fileResolver.isFile(p).then(bool => {
-        callback(null, !!bool);
+        callback(null, Boolean(bool));
       });
     }
 
-    return hasCallback ? callback(null, !!returnValue) : !!returnValue;
+    return hasCallback
+      ? callback(null, Boolean(returnValue))
+      : Boolean(returnValue);
   };
 
   readFileSync = (p: string, cb: Function | undefined, c?: Function) => {
@@ -555,6 +560,23 @@ export default class Manager {
       .replace(/.*\{\{sandboxRoot\}\}/, '');
   }
 
+  getModuleDirectories() {
+    const baseTSCompilerConfig = [
+      this.configurations.typescript,
+      this.configurations.jsconfig,
+    ].find(config => config && config.generated !== true);
+
+    const baseUrl =
+      baseTSCompilerConfig &&
+      baseTSCompilerConfig.parsed &&
+      baseTSCompilerConfig.parsed.compilerOptions &&
+      baseTSCompilerConfig.parsed.compilerOptions.baseUrl;
+
+    return ['node_modules', baseUrl, this.envVariables.NODE_PATH].filter(
+      Boolean
+    );
+  }
+
   // ALWAYS KEEP THIS METHOD IN SYNC WITH SYNC VERSION
   async resolveModuleAsync(
     path: string,
@@ -584,7 +606,8 @@ export default class Manager {
 
         if (NODE_LIBS.indexOf(shimmedPath) > -1) {
           this.cachedPaths[dirredPath][path] = shimmedPath;
-          return getShimmedModuleFromPath(currentPath, path);
+          promiseResolve(getShimmedModuleFromPath(currentPath, path));
+          return;
         }
 
         try {
@@ -596,10 +619,7 @@ export default class Manager {
               isFile: this.isFile,
               readFileSync: this.readFileSync,
               packageFilter,
-              moduleDirectory: [
-                'node_modules',
-                this.envVariables.NODE_PATH,
-              ].filter(Boolean),
+              moduleDirectory: this.getModuleDirectories(),
             },
             (err, foundPath) => {
               if (err) {
@@ -700,9 +720,7 @@ export default class Manager {
           isFile: this.isFile,
           readFileSync: this.readFileSync,
           packageFilter,
-          moduleDirectory: ['node_modules', this.envVariables.NODE_PATH].filter(
-            Boolean
-          ),
+          moduleDirectory: this.getModuleDirectories(),
         });
 
         this.cachedPaths[dirredPath][path] = resolvedPath;
@@ -979,9 +997,11 @@ export default class Manager {
 
     // Reset test files, but don't transpile. We want to do that in the test runner
     // so we can catch any errors
-    allModulesToUpdate.filter(m => m.isTestFile).forEach(m => {
-      m.resetTranspilation();
-    });
+    allModulesToUpdate
+      .filter(m => m.isTestFile)
+      .forEach(m => {
+        m.resetTranspilation();
+      });
 
     debug(
       `Generated update diff, updating ${
@@ -1049,7 +1069,7 @@ export default class Manager {
     const dependenciesQuery = this.getDependencyQuery();
 
     const meta = {};
-    Object.keys(getCombinedMetas() || {}).forEach(p => {
+    Object.keys(combinedMetas || {}).forEach(p => {
       const dir = pathUtils.dirname(p.replace('/node_modules', ''));
       meta[dir] = meta[dir] || [];
       meta[dir].push(pathUtils.basename(p));
@@ -1108,13 +1128,13 @@ export default class Manager {
           version === SCRIPT_VERSION &&
           dependenciesQuery === this.getDependencyQuery()
         ) {
-          const combinedMetas = {};
+          const newCombinedMetas = {};
           Object.keys(meta).forEach(dir => {
             meta[dir].forEach(file => {
-              combinedMetas[`/node_modules` + dir + '/' + file] = true;
+              newCombinedMetas[`/node_modules` + dir + '/' + file] = true;
             });
           });
-          setCombinedMetas(combinedMetas);
+          setCombinedMetas(newCombinedMetas);
 
           this.cachedPaths = cachedPaths;
           this.configurations = configurations;

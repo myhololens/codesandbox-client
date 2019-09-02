@@ -37,26 +37,32 @@ type Props = {
   title: string;
   details: string;
   selected: boolean;
+  color?: string;
   template: TemplateType;
+  customTemplate: { color: string } | null;
   screenshotUrl: string | undefined;
   setSandboxesSelected: (
     ids: string[],
     options?: { additive?: boolean; range?: boolean }
   ) => void;
   selectedCount: number;
-  deleteSandboxes: () => void;
-  permanentlyDeleteSandboxes: () => void;
   collectionPath: string; // eslint-disable-line react/no-unused-prop-types
   collectionTeamId: string | undefined;
   sandbox: Object;
   page: string | undefined;
   privacy: number;
   isPatron: boolean;
-  setSandboxesPrivacy: (privacy: 0 | 1 | 2) => void;
   isScrolling: () => boolean;
-  undeleteSandboxes: () => void;
   removedAt?: number;
   style?: React.CSSProperties;
+  alias: string | undefined;
+
+  setSandboxesPrivacy: (privacy: 0 | 1 | 2) => void;
+  deleteSandboxes: () => void;
+  exportSandboxes: () => void;
+  permanentlyDeleteSandboxes: () => void;
+  undeleteSandboxes: () => void;
+  makeTemplates: (teamId?: string) => void;
 
   // React-DnD, lazy typings
   connectDragSource: any;
@@ -68,6 +74,9 @@ type State = {
   renamingSandbox: boolean;
   screenshotUrl: string | undefined;
 };
+
+export const DELETE_SANDBOX_DROP_KEY = 'delete';
+export const MAKE_TEMPLATE_DROP_KEY = 'makeTemplate';
 
 class SandboxItem extends React.PureComponent<Props, State> {
   el: HTMLDivElement;
@@ -111,7 +120,7 @@ class SandboxItem extends React.PureComponent<Props, State> {
     }
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (nextProps.id !== this.props.id) {
       this.setState({ screenshotUrl: nextProps.screenshotUrl }, () => {
         this.checkScreenshot();
@@ -210,6 +219,26 @@ class SandboxItem extends React.PureComponent<Props, State> {
         ...items,
         [
           {
+            title: `Export ${selectedCount} Sandboxes`,
+            action: () => {
+              this.props.exportSandboxes();
+              return true;
+            },
+          },
+        ],
+        [
+          selectedCount < 50 && {
+            title: `Make ${selectedCount} Sandboxes a Template`,
+            action: () => {
+              track('Template - Created', {
+                source: 'Context Menu',
+                count: selectedCount,
+              });
+              this.props.makeTemplates();
+              return true;
+            },
+          },
+          {
             title: `Move ${selectedCount} Sandboxes To Trash`,
             action: () => {
               this.props.deleteSandboxes();
@@ -218,7 +247,7 @@ class SandboxItem extends React.PureComponent<Props, State> {
             color: theme.red.darken(0.2)(),
           },
         ],
-      ];
+      ].filter(Boolean);
     }
 
     return [
@@ -250,25 +279,32 @@ class SandboxItem extends React.PureComponent<Props, State> {
             return true;
           },
         },
+        {
+          title: 'Export Sandbox',
+          action: () => {
+            this.props.exportSandboxes();
+            return true;
+          },
+        },
       ],
       this.props.isPatron &&
         [
           this.props.privacy !== 0 && {
-            title: `Make Sandbox Public`,
+            title: 'Make Sandbox Public',
             action: () => {
               this.props.setSandboxesPrivacy(0);
               return true;
             },
           },
           this.props.privacy !== 1 && {
-            title: `Make Sandbox Unlisted`,
+            title: 'Make Sandbox Unlisted',
             action: () => {
               this.props.setSandboxesPrivacy(1);
               return true;
             },
           },
           this.props.privacy !== 2 && {
-            title: `Make Sandbox Private`,
+            title: 'Make Sandbox Private',
             action: () => {
               this.props.setSandboxesPrivacy(2);
               return true;
@@ -280,6 +316,17 @@ class SandboxItem extends React.PureComponent<Props, State> {
           title: `Rename Sandbox`,
           action: () => {
             this.setState({ renamingSandbox: true });
+            return true;
+          },
+        },
+        {
+          title: `Make Sandbox a Template`,
+          action: () => {
+            track('Template - Created', {
+              source: 'Context Menu',
+              count: 1,
+            });
+            this.props.makeTemplates();
             return true;
           },
         },
@@ -304,7 +351,7 @@ class SandboxItem extends React.PureComponent<Props, State> {
 
   openSandbox = (openNewWindow = false) => {
     // @ts-ignore Git sandboxes aren't shown here anyway
-    const url = sandboxUrl({ id: this.props.id });
+    const url = sandboxUrl({ id: this.props.id, alias: this.props.alias });
 
     if (!this.props.removedAt) {
       if (openNewWindow === true) {
@@ -403,6 +450,7 @@ class SandboxItem extends React.PureComponent<Props, State> {
       id,
       title,
       details,
+      color,
       template,
       connectDragSource,
       isDraggingItem,
@@ -442,7 +490,7 @@ class SandboxItem extends React.PureComponent<Props, State> {
                   // check for cmd click
                   const cmd = event.ctrlKey || event.metaKey;
 
-                  this.openSandbox(!!cmd);
+                  this.openSandbox(Boolean(cmd));
                 }}
                 onBlur={this.handleOnBlur}
                 onFocus={this.handleOnFocus}
@@ -473,7 +521,7 @@ class SandboxItem extends React.PureComponent<Props, State> {
                       left: 0,
                       width: 2,
                       height: '100%',
-                      backgroundColor: templateInfo.color(),
+                      backgroundColor: color || templateInfo.color(),
                     }}
                   />
                   <div style={{ flex: 1 }}>
@@ -574,8 +622,16 @@ const cardSource = {
 
     const result = monitor.getDropResult();
 
-    if (result && result.delete) {
+    if (result && result[DELETE_SANDBOX_DROP_KEY]) {
       props.deleteSandboxes();
+    }
+
+    if (result && result[MAKE_TEMPLATE_DROP_KEY]) {
+      track('Template - Created', {
+        source: 'Dragging',
+        team: !!result.teamId,
+      });
+      props.makeTemplates(result.teamId);
     }
   },
 };

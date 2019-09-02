@@ -1,19 +1,19 @@
-import * as React from 'react';
-
+import React from 'react';
 import { TweenMax, Elastic } from 'gsap';
-import store from 'store/dist/store.modern';
 import FaAngleUp from 'react-icons/lib/fa/angle-up';
+import store from 'store/dist/store.modern';
 
 import { TemplateType } from '@codesandbox/common/lib/templates';
+import { ViewConfig } from '@codesandbox/common/lib/templates/template';
+import track from '@codesandbox/common/lib/utils/analytics';
 
 import console from './Console';
-import tests from './Tests';
-import problems from './Problems';
-import terminal from './Terminal';
-
-import { Container, Header, ContentContainer } from './elements';
-import { ViewConfig } from '@codesandbox/common/lib/templates/template';
 import Tabs, { ITabPosition } from './Tabs';
+import problems from './Problems';
+import reactDevTools from './React-Devtools';
+import terminal from './Terminal';
+import tests from './Tests';
+import { Container, Header, ContentContainer } from './elements';
 
 function unFocus(document, window) {
   if (document.selection) {
@@ -23,7 +23,7 @@ function unFocus(document, window) {
     try {
       window.getSelection().removeAllRanges();
       // eslint-disable-next-line no-empty
-    } catch (e) {}
+    } catch {}
   }
 }
 
@@ -46,13 +46,14 @@ export interface IViewAction {
   title: string;
   onClick: () => void;
   Icon: React.ComponentClass<any, any>;
+  disabled?: boolean;
 }
 
 export interface IViewType {
   id: string;
-  title: string;
-  Content: React.ComponentClass<any, any>;
-  actions: IViewAction[] | ((owner: boolean) => IViewAction[]);
+  title: string | ((options: any) => string);
+  Content: React.ComponentType<DevToolProps>;
+  actions: IViewAction[] | ((info: { owned: boolean }) => IViewAction[]);
 }
 
 export type StatusType = 'info' | 'warning' | 'error' | 'success' | 'clear';
@@ -64,12 +65,13 @@ export type Status = {
 
 export type DevToolProps = {
   hidden: boolean;
-  updateStatus: (type: StatusType, count?: number) => {};
+  updateStatus: (type: StatusType, count?: number) => void;
   sandboxId: string;
-  height: number;
   openDevTools: () => void;
   hideDevTools: () => void;
   selectCurrentPane: () => void;
+  owned: boolean;
+  options: any;
 };
 
 const VIEWS: IViews = {
@@ -77,6 +79,7 @@ const VIEWS: IViews = {
   [problems.id]: problems,
   [tests.id]: tests,
   [terminal.id]: terminal,
+  [reactDevTools.id]: reactDevTools,
 };
 
 type Props = {
@@ -93,8 +96,12 @@ type Props = {
   viewConfig: ViewConfig;
   devToolIndex: number;
   moveTab?: (prevPos: ITabPosition, nextPos: ITabPosition) => void;
+  closeTab?: (pos: ITabPosition) => void;
+  setPane: (pos: ITabPosition) => void;
   addedViews?: IViews;
   hideTabs?: boolean;
+  currentDevToolIndex: number;
+  currentTabPosition: number;
 };
 type State = {
   status: { [title: string]: Status | undefined };
@@ -103,14 +110,14 @@ type State = {
   hidden: boolean;
   startY: number;
   startHeight: number;
-  currentPaneIndex: number;
+  currentTabIndex: number;
 };
 
-export default class DevTools extends React.PureComponent<Props, State> {
+export class DevTools extends React.PureComponent<Props, State> {
   constructor(props: Props) {
     super(props);
 
-    const isOpen = !!props.viewConfig.open;
+    const isOpen = Boolean(props.viewConfig.open);
 
     this.allViews = props.addedViews
       ? { ...VIEWS, ...props.addedViews }
@@ -118,14 +125,15 @@ export default class DevTools extends React.PureComponent<Props, State> {
 
     this.state = {
       status: {},
-      currentPaneIndex: 0,
 
       mouseDown: false,
       startY: 0,
       startHeight: 0,
-      height: isOpen ? '40%' : this.height(),
+      height: isOpen ? '40%' : this.closedHeight(),
 
       hidden: !props.primary && !isOpen,
+
+      currentTabIndex: 0,
     };
   }
 
@@ -150,7 +158,7 @@ export default class DevTools extends React.PureComponent<Props, State> {
     }
   }
 
-  height = () => (this.props.primary ? 35 : 28);
+  closedHeight = () => (this.props.primary ? 35 : 28);
 
   /**
    * This stops the propagation of the mousewheel event so the editor itself cannot
@@ -192,14 +200,6 @@ export default class DevTools extends React.PureComponent<Props, State> {
     }
   }
 
-  static getDerivedStateFromProps(props: Props, state: State): State {
-    if (state.currentPaneIndex >= props.viewConfig.views.length) {
-      return { ...state, currentPaneIndex: props.viewConfig.views.length - 1 };
-    }
-
-    return state;
-  }
-
   setHidden = (hidden: boolean) => {
     if (!hidden) {
       return this.setState({
@@ -220,7 +220,7 @@ export default class DevTools extends React.PureComponent<Props, State> {
   };
 
   getCurrentPane = () =>
-    this.props.viewConfig.views[this.state.currentPaneIndex];
+    this.props.viewConfig.views[this.state.currentTabIndex];
 
   updateStatus = (id: string) => (
     status: 'success' | 'warning' | 'error' | 'info' | 'clear',
@@ -330,7 +330,7 @@ export default class DevTools extends React.PureComponent<Props, State> {
         this.state.startHeight - (event.clientY - this.state.startY);
 
       this.setState({
-        height: Math.max(this.height() - 2, newHeight),
+        height: Math.max(this.closedHeight() - 2, newHeight),
       });
       this.setHidden(newHeight < 64);
     }
@@ -372,7 +372,7 @@ export default class DevTools extends React.PureComponent<Props, State> {
       this.props.setDevToolsOpen(false);
     }
     TweenMax.to(heightObject, 0.3, {
-      height: this.height(),
+      height: this.closedHeight(),
       onUpdate: () => {
         this.setState(heightObject);
       },
@@ -384,8 +384,16 @@ export default class DevTools extends React.PureComponent<Props, State> {
     if (this.state.hidden && !this.props.primary) {
       this.openDevTools();
     }
+    const pane = this.props.viewConfig.views[index];
+    if (pane) {
+      track('DevTools - Open Pane', { pane: pane.id });
+    }
+
+    this.props.setPane({
+      devToolIndex: this.props.devToolIndex,
+      tabPosition: index,
+    });
     this.setState({
-      currentPaneIndex: index,
       status: {
         ...this.state.status,
         [this.props.viewConfig.views[index].id]: {
@@ -396,9 +404,31 @@ export default class DevTools extends React.PureComponent<Props, State> {
     });
   };
 
+  /**
+   * Set the current tab based on whether the selection has changed to the current
+   * devtools
+   */
+  static getDerivedStateFromProps(props: Props, state: State) {
+    if (props.devToolIndex === props.currentDevToolIndex) {
+      return {
+        currentTabIndex: Math.min(
+          props.currentTabPosition,
+          props.viewConfig.views.length - 1
+        ),
+      };
+    }
+
+    // Prevent selecting the last tab
+    if (state.currentTabIndex > props.viewConfig.views.length - 1) {
+      return { currentTabIndex: props.viewConfig.views.length - 1 };
+    }
+
+    return null;
+  }
+
   getViews = (): IViews => this.allViews;
 
-  node: HTMLElement;
+  node: HTMLDivElement;
   allViews: IViews;
 
   render() {
@@ -417,21 +447,17 @@ export default class DevTools extends React.PureComponent<Props, State> {
     return (
       <Container
         ref={el => {
-          this.node = el;
-          this.normalizeHeight(el);
+          this.node = el || this.node;
+
+          if (this.node) {
+            this.normalizeHeight(this.node);
+          }
         }}
         style={{
-          height: primary ? '100%' : height,
-          position: 'relative',
-          display: 'flex',
-          maxHeight: '100%',
-          /**
-           * Necessary to ensure it drags naturally. Otherwise there's an issue
-           * where flex tries to allocate equal space to the preview and the terminal,
-           * resulting in a very jaggy experience. We set flex-shrink to 0 only
-           * for the console, and not for the preview
-           */
-          flexShrink: devToolIndex === 1 ? 0 : 1,
+          flex: primary
+            ? '1 1 0'
+            : `0 0 ${height}${typeof height === 'number' ? 'px' : ''}`,
+          minHeight: 0,
         }}
       >
         {!hideTabs && (
@@ -443,8 +469,9 @@ export default class DevTools extends React.PureComponent<Props, State> {
           >
             <Tabs
               owned={owned}
-              panes={panes.map(p => this.getViews()[p.id])}
-              currentPaneIndex={this.state.currentPaneIndex}
+              panes={panes}
+              views={this.getViews()}
+              currentPaneIndex={this.state.currentTabIndex}
               hidden={hidden}
               setPane={this.setPane}
               devToolIndex={devToolIndex}
@@ -452,23 +479,22 @@ export default class DevTools extends React.PureComponent<Props, State> {
               moveTab={
                 this.props.moveTab
                   ? (prevPos, nextPos) => {
-                      if (prevPos.devToolIndex === this.props.devToolIndex) {
-                        this.setState({
-                          currentPaneIndex: nextPos.tabPosition,
-                        });
-                      }
-
+                      track('DevTools - Move Pane', {
+                        pane: this.props.viewConfig.views[prevPos.tabPosition]
+                          .id,
+                      });
                       this.props.moveTab(prevPos, nextPos);
                     }
                   : undefined
               }
+              closeTab={this.props.closeTab}
             />
 
             {!primary && (
               <FaAngleUp
                 onMouseDown={hidden ? undefined : this.handleMinimizeClick}
                 style={{
-                  marginTop: hidden ? 0 : 4,
+                  alignSelf: 'center',
                   transform: hidden ? `rotateZ(0deg)` : `rotateZ(180deg)`,
                   cursor: 'pointer',
                 }}
@@ -479,18 +505,20 @@ export default class DevTools extends React.PureComponent<Props, State> {
         <ContentContainer>
           {panes.map((view, i) => {
             const { Content } = this.getViews()[view.id];
+
             return (
               <Content
-                key={view.id}
-                hidden={hidden || i !== this.state.currentPaneIndex}
+                key={view.id + JSON.stringify(view.options)}
+                owned={owned}
+                hidden={hidden || i !== this.state.currentTabIndex}
                 updateStatus={this.updateStatus(view.id)}
                 sandboxId={sandboxId}
-                height={this.state.height}
                 openDevTools={this.openDevTools}
                 hideDevTools={this.hideDevTools}
                 selectCurrentPane={() => {
                   this.setPane(i);
                 }}
+                options={view.options || {}}
               />
             );
           })}

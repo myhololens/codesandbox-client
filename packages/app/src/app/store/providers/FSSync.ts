@@ -73,28 +73,33 @@ async function syncDependencyTypings(
     );
 
     return Promise.all(
+      // eslint-disable-next-line consistent-return
       Object.keys(absoluteDependencies).map(async depName => {
         const depVersion = absoluteDependencies[depName];
 
         try {
-          const fetchRequest = await fetch(`${SERVICE_URL}/${depName}@${depVersion}.json`);
+          const fetchRequest = await fetch(
+            `${SERVICE_URL}/${depName}@${depVersion}.json`
+          );
 
           if (!fetchRequest.ok) {
-            throw new Error("Fetch error");
+            throw new Error('Fetch error');
           }
 
-          const {files} = await fetchRequest.json();
-          types = {...types, ...files};
+          const { files } = await fetchRequest.json();
+          types = { ...types, ...files };
           sendTypes();
         } catch (e) {
           if (process.env.NODE_ENV === 'development') {
+            // eslint-disable-next-line no-console
             console.warn('Trouble fetching types for ' + depName);
           }
+
           return {};
         }
       })
     );
-  } catch (e) {
+  } catch {
     /* ignore */
     return Promise.resolve({});
   }
@@ -139,14 +144,16 @@ export default Provider({
                 return;
               }
 
-              fs.stat('/sandbox/tsconfig.json', (err, result) => {
+              fs.stat('/sandbox/tsconfig.json', (error, result) => {
                 // If tsconfig exists we want to sync the types
-                syncDependencyTypings(rv.toString(), !!err || !result);
+                syncDependencyTypings(rv.toString(), Boolean(error) || !result);
               });
             });
           }
         });
-      } catch (e) {}
+      } catch {
+        // we just ignore the error
+      }
     }, 1000);
 
     self.addEventListener('message', evt => {

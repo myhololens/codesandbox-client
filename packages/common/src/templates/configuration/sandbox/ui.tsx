@@ -1,5 +1,4 @@
-// @flow
-import * as React from 'react';
+import React from 'react';
 import sortBy from 'lodash/sortBy';
 
 import * as templates from '../../../templates';

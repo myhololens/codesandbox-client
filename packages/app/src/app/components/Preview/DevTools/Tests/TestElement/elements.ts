@@ -6,74 +6,74 @@ export const Actions = styled.div`
   opacity: 0;
   font-size: 1.125rem;
 
-  color: white;
+  color: ${props =>
+    props.theme.light ? 'rgb(0, 0, 0)' : 'rgb(255, 255, 255)'};
 
   svg {
     margin-left: 0.5rem;
-    transition: 0.3s ease color;
-
-    color: rgba(255, 255, 255, 0.6);
+    transition: 0.3s ease opacity;
+    opacity: 0.6;
+    color: ${props => props.theme['button.hoverBackground']};
 
     &:hover {
-      color: rgba(255, 255, 255, 1);
+      opacity: 1;
     }
   }
 `;
 
 export const TestName = styled.div`
-  transition: 0.3s ease background-color;
-  padding: 0.25rem;
-  padding-left: 20px;
-  background-color: ${props => props.theme.background2};
-  color: rgba(255, 255, 255, 0.8);
+  padding: 0.25rem 0.25rem 0.25rem 20px;
+  background-color: ${props => props.theme['sideBar.background']};
+  color: ${props =>
+    props.theme.light ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)'};
   flex: auto;
   white-space: nowrap;
 `;
 
 export const Test = styled.div<{ status: Status }>`
-  display: flex;
-  align-items: center;
-  padding-left: 1rem;
-  cursor: pointer;
+  ${({ status, theme }) => css`
+    display: flex;
+    align-items: center;
+    padding-left: 1rem;
+    cursor: pointer;
 
-  background-color: #181b1d;
-
-  ${props =>
-    props.status === 'idle' &&
-    css`
-      color: rgba(255, 255, 255, 0.4);
-    `};
+    ${status === 'idle' &&
+      css`
+        color: ${theme.light
+          ? 'rgba(0, 0, 0, 0.4)'
+          : 'rgba(255, 255, 255, 0.4)'};
+      `};
+  `};
 `;
 
 export const Block = styled.div<{ last: boolean }>`
-  transition: 0.3s ease color;
-  display: flex;
-  padding: 0.25rem 0.4rem;
-  padding-left: 0.5rem;
-  position: relative;
-  margin-right: ${props => (props.last ? 0 : 12)}px;
-  color: rgba(255, 255, 255, 0.5);
+  ${({ last, theme }) => css`
+    display: flex;
+    padding: 0.25rem 0.4rem 0.25rem 0.5rem;
+    position: relative;
+    margin-right: ${last ? 0 : 12}px;
+    color: ${theme.light ? 'rgba(0, 0, 0, 0.5)' : 'rgba(255, 255, 255, 0.5)'};
 
-  white-space: nowrap;
+    white-space: nowrap;
 
-  &::after {
-    content: '';
-    position: absolute;
-    margin: auto;
-    top: 3px;
-    right: -10px;
-    width: 17px;
-    height: 17px;
-    transform: rotate(45deg);
-    -webkit-transform: rotate(45deg);
-    -moz-transform: rotate(45deg);
-    -o-transform: rotate(45deg);
-    -ms-transform: rotate(45deg);
-    border-right: 2px solid rgba(0, 0, 0, 0.2);
-    border-top: 2px solid rgba(0, 0, 0, 0.2);
-    background-color: #181b1d;
-    z-index: 1;
-  }
+    &::after {
+      content: '';
+      position: absolute;
+      top: 8px;
+      right: -10px;
+      width: 10px;
+      height: 10px;
+      transform: rotate(45deg);
+      border-right: 1px solid
+        ${theme.light
+          ? css`rgba(0, 0, 0, ${last ? 0.3 : 0.4})`
+          : css`rgba(255, 255, 255, ${last ? 0.3 : 0.4})`};
+      border-top: 1px solid
+        ${theme.light
+          ? css`rgba(0, 0, 0, ${last ? 0.3 : 0.4})`
+          : css`rgba(255, 255, 255, ${last ? 0.3 : 0.4})`};
+    }
+  `};
 `;
 
 export const FileData = styled.div`
@@ -86,70 +86,84 @@ export const FileData = styled.div`
 `;
 
 export const Path = styled.span`
-  color: rgba(255, 255, 255, 0.6);
+  ${({ theme }) => css`
+    color: ${theme.light ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.6)'};
+  `};
 `;
 
 export const FileName = styled.span`
-  color: rgba(255, 255, 255, 0.8);
+  ${({ theme }) => css`
+    color: ${theme.light ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)'};
 
-  flex: 1;
+    flex: 1;
+  `};
 `;
 
 export const Tests = styled.div`
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.7);
-  overflow-x: auto;
+  ${({ theme }) => css`
+    font-weight: 400;
+    color: ${theme.light ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.7)'};
+    overflow-x: auto;
 
-  &::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-  }
+    &::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+  `};
 `;
 
 export const Container = styled.div<{ selected: boolean }>`
-  transition: 0.3s ease all;
-  font-weight: 500;
-  font-size: 0.875rem;
-  border-left: 2px solid transparent;
+  ${({ selected, theme }) => css`
+    transition: 0.3s ease all;
+    font-weight: 500;
+    font-size: 0.875rem;
+    border-left: 2px solid transparent;
 
-  &:hover {
-    background-color: rgba(0, 0, 0, 0.2);
-    border-left-color: ${props => props.theme.secondary.clearer(0.5)};
+    &:hover {
+      background-color: ${!theme.light
+        ? 'rgba(0, 0, 0, 0.2)'
+        : 'rgba(255, 255, 255, 0.2)'};
+      color: ${theme.light ? 'rgba(0, 0, 0, 1)' : 'rgba(255, 255, 255, 1)'};
+      border-left-color: ${theme.secondary.clearer(0.5)};
 
-    ${Actions} {
-      opacity: 1;
-    }
-
-    ${Test} {
-      ${TestName} {
-        background-color: rgba(0, 0, 0, 0.05);
+      ${Actions} {
+        opacity: 1;
       }
-
-      ${Block} {
-        color: rgba(255, 255, 255, 0.8);
-      }
-    }
-  }
-
-  ${props =>
-    props.selected &&
-    css`
-      border-left-color: ${props.theme.secondary};
-      background-color: rgba(0, 0, 0, 0.3);
 
       ${Test} {
-        ${TestName} {
-          background-color: rgba(0, 0, 0, 0.05);
-        }
-
         ${Block} {
-          color: rgba(255, 255, 255, 0.8);
+          color: ${theme.light ? '#000000' : '#FFFFFF'};
         }
       }
+    }
 
-      &:hover {
-        border-left-color: ${props.theme.secondary};
-        background-color: rgba(0, 0, 0, 0.3);
-      }
-    `};
+    ${selected &&
+      css`
+        border-left-color: ${theme.secondary};
+        background-color: ${!theme.light
+          ? 'rgba(0, 0, 0, 0.2)'
+          : 'rgba(255, 255, 255, 0.2)'};
+        color: ${theme.light ? '#000000' : '#FFFFFF'};
+
+        ${Test} {
+          ${TestName} {
+            background-color: ${!theme.light
+              ? 'rgba(0, 0, 0, 0.2)'
+              : 'rgba(255, 255, 255, 0.2)'};
+            color: ${theme.light ? '#000000' : '#FFFFFF'};
+          }
+
+          ${Block} {
+            background-color: ${!theme.light
+              ? 'rgba(0, 0, 0, 0.2)'
+              : 'rgba(255, 255, 255, 0.2)'};
+            color: ${theme.light ? '#000000' : '#FFFFFF'};
+          }
+        }
+
+        &:hover {
+          border-left-color: ${theme.secondary};
+        }
+      `};
+  `};
 `;

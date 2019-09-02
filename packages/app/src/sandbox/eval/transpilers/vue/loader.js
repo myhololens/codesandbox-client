@@ -47,13 +47,11 @@ export default function(content: string, loaderContext: LoaderContext) {
 
   const { path, _module } = loaderContext;
   const query = loaderContext.options;
-  const options = Object.assign(
-    {
-      esModule: false,
-    },
-    this.vue,
-    query
-  );
+  const options = {
+    esModule: false,
+    ...this.vue,
+    ...query,
+  };
 
   // disable esModule in inject mode
   // because import/export must be top-level
@@ -79,11 +77,8 @@ export default function(content: string, loaderContext: LoaderContext) {
     parts.template && parts.template.attrs && parts.template.attrs;
   const hasComment = templateAttrs && templateAttrs.comments;
   const functionalTemplate = templateAttrs && templateAttrs.functional;
-  const bubleTemplateOptions = Object.assign({}, options.buble);
-  bubleTemplateOptions.transforms = Object.assign(
-    {},
-    bubleTemplateOptions.transforms
-  );
+  const bubleTemplateOptions = { ...options.buble };
+  bubleTemplateOptions.transforms = { ...bubleTemplateOptions.transforms };
   bubleTemplateOptions.transforms.stripWithFunctional = functionalTemplate;
 
   const templateCompilerOptions =
@@ -109,7 +104,7 @@ export default function(content: string, loaderContext: LoaderContext) {
 
   const defaultLoaders = {
     html: templateCompilerPath + templateCompilerOptions,
-    css: styleLoaderPath + '!' + 'css-loader' + cssLoaderOptions,
+    css: styleLoaderPath + '!css-loader' + cssLoaderOptions,
     js: 'babel-loader',
   };
 
@@ -125,7 +120,7 @@ export default function(content: string, loaderContext: LoaderContext) {
     coffee: ['babel-loader', 'coffee-loader'],
   };
 
-  const loaders = Object.assign({}, defaultLoaders, codeSandboxLoaders);
+  const loaders = { ...defaultLoaders, ...codeSandboxLoaders };
   const preLoaders = {};
   const postLoaders = {};
 
@@ -147,7 +142,7 @@ export default function(content: string, loaderContext: LoaderContext) {
         : getRequire('styles', style, i, style.scoped);
 
       const hasStyleLoader = requireString.indexOf('style-loader') > -1;
-      const hasVueStyleLoader = requireString.indexOf('vue-style-loader') > -1;
+      // const hasVueStyleLoader = requireString.indexOf('vue-style-loader') > -1;
 
       const invokeStyle = c => `  ${c}\n`;
 
@@ -474,7 +469,7 @@ export default function(content: string, loaderContext: LoaderContext) {
   }
 
   function buildCustomBlockLoaderString(attrs) {
-    const noSrcAttrs = Object.assign({}, attrs);
+    const noSrcAttrs = { ...attrs };
     delete noSrcAttrs.src;
     const qs = querystring.stringify(noSrcAttrs);
     return qs ? '?' + qs : qs;
@@ -483,12 +478,10 @@ export default function(content: string, loaderContext: LoaderContext) {
   // stringify an Array of loader objects
   function stringifyLoaders(loaders) {
     return loaders
-      .map(
-        obj =>
-          obj && typeof obj === 'object' && typeof obj.loader === 'string'
-            ? obj.loader +
-              (obj.options ? '?' + JSON.stringify(obj.options) : '')
-            : obj
+      .map(obj =>
+        obj && typeof obj === 'object' && typeof obj.loader === 'string'
+          ? obj.loader + (obj.options ? '?' + JSON.stringify(obj.options) : '')
+          : obj
       )
       .join('!');
   }

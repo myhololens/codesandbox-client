@@ -1,7 +1,8 @@
 // @flow
 import * as React from 'react';
 import type { Sandbox } from '@codesandbox/common/lib/types';
-import ModeIcons from 'app/components/ModeIcons';
+import { getSandboxName } from '@codesandbox/common/lib/utils/get-sandbox-name';
+import { ModeIcons } from 'app/components/ModeIcons';
 import HeartIcon from 'react-icons/lib/fa/heart-o';
 import FullHeartIcon from 'react-icons/lib/fa/heart';
 import Logo from '@codesandbox/common/lib/components/Logo';
@@ -57,7 +58,7 @@ function Header({
   toggleLike,
   liked,
 }: Props) {
-  const sandboxTitle = sandbox.title || sandbox.id;
+  const sandboxTitle = getSandboxName(sandbox);
 
   return (
     <Container>

@@ -2,8 +2,13 @@ import { sequence, parallel } from 'cerebral';
 import { set, when } from 'cerebral/operators';
 import { state, props } from 'cerebral/tags';
 import trackAnalytics from '@codesandbox/common/lib/utils/analytics';
+import {
+  notificationState,
+  convertTypeToStatus,
+} from '@codesandbox/common/lib/utils/notifications';
 import * as actions from './actions';
 import { initializeNotifications } from './modules/user-notifications/sequences';
+import { setupCodeSandboxAPIListener } from './modules/server/actions';
 
 export function addTabById(id) {
   // eslint-disable-next-line
@@ -74,25 +79,12 @@ export function setCurrentModule(id) {
   ]);
 }
 
-export function addNotification(
-  title,
-  notificationType,
-  timeAlive,
-  buttons = []
-) {
-  // eslint-disable-next-line no-shadow
-  return function addNotification({ state, resolve }) {
-    const now = Date.now();
-    const notificationTypeValue = resolve.value(notificationType);
-    const timeAliveDefault = notificationTypeValue === 'error' ? 6 : 3;
-
-    state.push('notifications', {
-      id: now,
-      title: resolve.value(title),
-      notificationType: notificationTypeValue,
-      buttons: resolve.value(buttons),
-      endTime:
-        now + (timeAlive ? resolve.value(timeAlive) : timeAliveDefault) * 1000,
+export function addNotification(title, notificationType, timeAlive) {
+  return function addNotif({ resolve }) {
+    notificationState.addNotification({
+      message: resolve.value(title),
+      status: convertTypeToStatus(resolve.value(notificationType)),
+      timeAlive: resolve.value(timeAlive) * 1000,
     });
   };
 }
@@ -116,6 +108,7 @@ export function withLoadApp(continueSequence) {
         actions.setStoredSettings,
         actions.setKeybindings,
         actions.startKeybindings,
+        setupCodeSandboxAPIListener,
 
         when(state`jwt`),
         {
@@ -129,11 +122,19 @@ export function withLoadApp(continueSequence) {
                     actions.setPatronPrice,
                     actions.setSignedInCookie,
                     actions.connectWebsocket,
+                    actions.showUserSurveyIfNeeded,
                     initializeNotifications,
+                    actions.loadTemplatesForStartModal,
                   ],
                   error: [
                     addNotification(
-                      'Your session seems to be expired, please log in again...',
+                      "We weren't able to sign you in, this could be due to a flaky connection or something on our server. Please try again in a minute.",
+                      'error'
+                    ),
+                  ],
+                  unauthorized: [
+                    addNotification(
+                      'Your session seems to be expired, please try to log in again...',
                       'error'
                     ),
                     actions.removeJwtFromStorage,

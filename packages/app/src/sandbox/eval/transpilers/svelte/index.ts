@@ -1,5 +1,5 @@
 // @ts-ignore
-import SvelteWorker from 'worker-loader?publicPath=/&name=svelte-transpiler.[hash:8].worker.js!./svelte-worker.js';
+import SvelteWorker from 'worker-loader?publicPath=/&name=svelte-transpiler.[hash:8].worker.js!./svelte-worker';
 
 import semver from 'semver';
 
@@ -16,12 +16,13 @@ class SvelteTranspiler extends WorkerTranspiler {
 
   doTranspilation(code: string, loaderContext: LoaderContext) {
     const packageJSON = loaderContext.options.configurations.package;
-    const isV2 =
-      packageJSON &&
-      packageJSON.parsed &&
-      packageJSON.parsed.devDependencies &&
-      packageJSON.parsed.devDependencies.svelte &&
-      semver.intersects(packageJSON.parsed.devDependencies.svelte, '^2.0.0');
+    const svelte =
+      (packageJSON &&
+        packageJSON.parsed &&
+        packageJSON.parsed.devDependencies &&
+        packageJSON.parsed.devDependencies.svelte &&
+        semver.coerce(packageJSON.parsed.devDependencies.svelte)) ||
+      semver.coerce(packageJSON.parsed.dependencies.svelte);
 
     return new Promise<TranspilerResult>((resolve, reject) => {
       const path = loaderContext.path;
@@ -30,7 +31,7 @@ class SvelteTranspiler extends WorkerTranspiler {
         {
           code,
           path,
-          isV2,
+          version: (svelte || {}).version,
         },
         loaderContext._module.getId(),
         loaderContext,

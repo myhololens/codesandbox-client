@@ -1,21 +1,4 @@
-// @flow
 import Transpiler, { TranspilerResult } from '../';
-
-import mimes from './mimes.json';
-
-function getMime(path) {
-  const extension = path
-    .split('.')
-    .pop()
-    .toLowerCase();
-  const mime = mimes[extension];
-  if (!mime) {
-    throw new Error(
-      'Unsupported type of image of extension ' + extension + ': ' + path
-    );
-  }
-  return mime;
-}
 
 class Base64Transpiler extends Transpiler {
   constructor() {

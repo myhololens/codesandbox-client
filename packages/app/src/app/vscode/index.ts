@@ -1,3 +1,10 @@
+import {
+  convertTypeToStatus,
+  notificationState,
+} from '@codesandbox/common/lib/utils/notifications';
+import { blocker } from 'app/utils/blocker';
+import { NotificationMessage } from '@codesandbox/notifications/lib/state';
+
 import { KeyCode, KeyMod } from './keyCodes';
 import bootstrap from './dev-bootstrap';
 import { MenuId } from './menus';
@@ -18,21 +25,6 @@ interface ICustomEditorApi {
 const context: any = window;
 
 /**
- * This is a waiting promise that only resolves when VSCode is done initializing
- */
-function blocker() {
-  let resolve = null;
-  const promise = new Promise<any>(r => {
-    resolve = r;
-  });
-
-  return {
-    promise,
-    resolve,
-  };
-}
-
-/**
  * Handles the VSCode instance for the whole app. The goal is to deprecate/remove this service at one point
  * and let the VSCode codebase handle the initialization of all elements. We are going for a gradual approach though,
  * that's why in the first phase we let the CodeSandbox application handle all the initialization of the VSCode
@@ -42,11 +34,11 @@ class VSCodeManager {
   private serviceCache: IServiceCache;
   private controller: any;
 
-  private statusbarPart = blocker();
-  private menubarPart = blocker();
-  private commandService = blocker();
-  private extensionService = blocker();
-  private extensionEnablementService = blocker();
+  private statusbarPart = blocker<any>();
+  private menubarPart = blocker<any>();
+  private commandService = blocker<any>();
+  private extensionService = blocker<any>();
+  private extensionEnablementService = blocker<any>();
 
   public acquireController(controller: any) {
     this.controller = controller;
@@ -196,12 +188,12 @@ class VSCodeManager {
     addBrowserNavigationCommand(
       'codesandbox.help.open-issue',
       'Open Issue on GitHub',
-      'https://github.com/CompuIves/codesandbox-client/issues'
+      'https://github.com/codesandbox/codesandbox-client/issues'
     );
     addBrowserNavigationCommand(
       'codesandbox.help.github',
       'Open Our GitHub Repository',
-      'https://github.com/CompuIves/codesandbox-client'
+      'https://github.com/codesandbox/codesandbox-client'
     );
     addBrowserNavigationCommand(
       'codesandbox.help.twitter',
@@ -303,6 +295,18 @@ class VSCodeManager {
     });
   }
 
+  addNotification(
+    message: string,
+    type: 'warning' | 'notice' | 'error' | 'success',
+    notification: NotificationMessage
+  ) {
+    notificationState.addNotification({
+      message,
+      status: convertTypeToStatus(type),
+      ...notification,
+    });
+  }
+
   /**
    * Initialize the base VSCode editor, this includes registering all the services in VSCode.
    */
@@ -364,13 +368,13 @@ class VSCodeManager {
       container,
       {
         codesandboxService: i =>
-          new SyncDescriptor(CodeSandboxService, [this.controller]),
+          new SyncDescriptor(CodeSandboxService, [this.controller, this]),
         codesandboxConfigurationUIService: i =>
           new SyncDescriptor(CodeSandboxConfigurationUIService, [
             customEditorAPI,
           ]),
       },
-      ({ serviceCollection, dispose }) => {
+      ({ serviceCollection }) => {
         const instantiationService = serviceCollection.get(
           IInstantiationService
         );

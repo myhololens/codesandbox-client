@@ -1,15 +1,19 @@
 import React from 'react';
-import { inject, observer } from 'mobx-react';
+import { inject, observer } from 'app/componentConnectors';
 
-import moment from 'moment';
+import { distanceInWordsToNow } from 'date-fns';
 import { uniq } from 'lodash-es';
 import { basename } from 'path';
+import { camelizeKeys } from 'humps';
 
 import track from '@codesandbox/common/lib/utils/analytics';
+import { protocolAndHost } from '@codesandbox/common/lib/utils/url-generator';
 import Grid from 'react-virtualized/dist/commonjs/Grid';
 import Column from 'react-virtualized/dist/commonjs/Table/Column';
 import Table from 'react-virtualized/dist/commonjs/Table';
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
+import downloadZip from 'app/store/providers/Utils/create-zip';
+import { getSandboxName } from '@codesandbox/common/lib/utils/get-sandbox-name';
 import 'react-virtualized/styles.css';
 
 import SandboxItem from '../SandboxCard';
@@ -23,6 +27,7 @@ import {
   permanentlyDeleteSandboxes,
   setSandboxesPrivacy,
   undeleteSandboxes,
+  makeTemplates,
 } from '../../queries';
 
 type State = {
@@ -45,6 +50,8 @@ class SandboxGrid extends React.Component<*, State> {
     selection: undefined,
   };
 
+  loadedSandboxes = {};
+
   setSandboxesSelected = (ids, { additive = false, range = false } = {}) => {
     const { store, sandboxes, signals } = this.props;
     const selectedSandboxes = store.dashboard.selectedSandboxes;
@@ -53,8 +60,8 @@ class SandboxGrid extends React.Component<*, State> {
       const indexedSandboxes = sandboxes.map((sandbox, i) => ({ sandbox, i }));
 
       // We need to select a range
-      const firstIndexInfo = indexedSandboxes.find(
-        ({ sandbox }) => selectedSandboxes.indexOf(sandbox.id) > -1
+      const firstIndexInfo = indexedSandboxes.find(({ sandbox }) =>
+        selectedSandboxes.includes(sandbox.id)
       );
 
       const [id] = ids;
@@ -81,10 +88,10 @@ class SandboxGrid extends React.Component<*, State> {
     if (additive) {
       track('Dashboard - Sandbox Additive Selection');
       sandboxIds = store.dashboard.selectedSandboxes.filter(
-        id => ids.indexOf(id) === -1
+        id => !ids.includes(id)
       );
       const additiveIds = ids.filter(
-        id => store.dashboard.selectedSandboxes.indexOf(id) === -1
+        id => !store.dashboard.selectedSandboxes.includes(id)
       );
 
       sandboxIds = uniq([...sandboxIds, ...additiveIds]);
@@ -93,6 +100,20 @@ class SandboxGrid extends React.Component<*, State> {
     signals.dashboard.sandboxesSelected({
       sandboxIds,
     });
+  };
+
+  makeTemplates = (teamId?: string) => {
+    const collections = uniq(
+      this.props.sandboxes
+        .filter(sandbox => this.selectedSandboxesObject[sandbox.id])
+        .map(s => s.collection)
+    );
+
+    makeTemplates(
+      this.props.store.dashboard.selectedSandboxes,
+      teamId,
+      collections
+    );
   };
 
   deleteSandboxes = () => {
@@ -114,6 +135,39 @@ class SandboxGrid extends React.Component<*, State> {
 
   setSandboxesPrivacy = (privacy: number) => {
     setSandboxesPrivacy(this.props.store.dashboard.selectedSandboxes, privacy);
+  };
+
+  getSandbox = async sandboxId => {
+    if (this.loadedSandboxes[sandboxId]) {
+      return Promise.resolve(this.loadedSandboxes[sandboxId]);
+    }
+
+    return fetch(`${protocolAndHost()}/api/v1/sandboxes/${sandboxId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${JSON.parse(localStorage.getItem('jwt'))}`,
+      },
+    })
+      .then(x => x.json())
+      .then(x => {
+        const data = camelizeKeys(x.data);
+        this.loadedSandboxes[data.id] = data;
+        return data;
+      });
+  };
+
+  exportSandboxes = async () => {
+    const sandboxIds = uniq(
+      this.props.sandboxes
+        .filter(sandbox => this.selectedSandboxesObject[sandbox.id])
+        .map(s => s.id)
+    );
+    const sandboxes = await Promise.all(
+      sandboxIds.map(s => this.getSandbox(s))
+    );
+    return Promise.all(
+      sandboxes.map(s => downloadZip(s, s.modules, s.directories))
+    );
   };
 
   onMouseDown = (event: MouseEvent) => {
@@ -216,15 +270,15 @@ class SandboxGrid extends React.Component<*, State> {
 
     const getOrder = () => {
       if (item.removedAt) {
-        return `Deleted ${moment.utc(item.removedAt).fromNow()}`;
+        return `Deleted ${distanceInWordsToNow(item.removedAt)} ago`;
       }
 
       const orderField = this.props.store.dashboard.orderBy.field;
       if (orderField === 'insertedAt') {
-        return `Created ${moment.utc(item.insertedAt).fromNow()}`;
+        return `Created ${distanceInWordsToNow(item.insertedAt)} ago`;
       }
 
-      return `Edited ${moment.utc(item.updatedAt).fromNow()}`;
+      return `Edited ${distanceInWordsToNow(item.updatedAt)} ago`;
     };
 
     let editedSince = getOrder();
@@ -232,7 +286,7 @@ class SandboxGrid extends React.Component<*, State> {
     if (this.props.page === 'search' || this.props.page === 'recent') {
       const dir =
         basename(item.collection.path) ||
-        (item.collection.teamId ? 'Our Sandboxes' : 'My Sandboxes');
+        (item.collection.teamId ? 'Team Sandboxes' : 'My Sandboxes');
 
       if (dir) {
         editedSince += ` in ${dir}`;
@@ -243,7 +297,9 @@ class SandboxGrid extends React.Component<*, State> {
       <SandboxItem
         isScrolling={this.isScrolling}
         id={item.id}
-        title={item.title || item.id}
+        title={getSandboxName(item)}
+        alias={item.alias}
+        color={item.forkedTemplate ? item.forkedTemplate.color : undefined}
         details={editedSince}
         style={style}
         key={key}
@@ -262,7 +318,9 @@ class SandboxGrid extends React.Component<*, State> {
         deleteSandboxes={this.deleteSandboxes}
         undeleteSandboxes={this.undeleteSandboxes}
         permanentlyDeleteSandboxes={this.permanentlyDeleteSandboxes}
+        exportSandboxes={this.exportSandboxes}
         setSandboxesPrivacy={this.setSandboxesPrivacy}
+        makeTemplates={this.makeTemplates}
         page={this.props.page}
         privacy={item.privacy}
         isPatron={this.props.store.isPatron}
@@ -351,7 +409,7 @@ class SandboxGrid extends React.Component<*, State> {
                     label="Last Updated"
                     dataKey="updatedAt"
                     cellDataGetter={({ rowData }) =>
-                      moment.utc(rowData.updatedAt).fromNow()
+                      distanceInWordsToNow(rowData.updatedAt) + ' ago'
                     }
                     width={150}
                   />
@@ -359,7 +417,7 @@ class SandboxGrid extends React.Component<*, State> {
                     label="Created"
                     dataKey="insertedAt"
                     cellDataGetter={({ rowData }) =>
-                      moment.utc(rowData.insertedAt).fromNow()
+                      distanceInWordsToNow(rowData.insertedAt) + ' ago'
                     }
                     width={150}
                   />

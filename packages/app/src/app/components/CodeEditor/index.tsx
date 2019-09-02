@@ -1,7 +1,6 @@
 import React from 'react';
-import Title from 'app/components/Title';
-import SubTitle from 'app/components/SubTitle';
-import Loadable from 'app/utils/Loadable';
+import UIIcon from 'react-icons/lib/md/dvr';
+import QuestionIcon from 'react-icons/lib/go/question';
 import getUI from '@codesandbox/common/lib/templates/configuration/ui';
 import Centered from '@codesandbox/common/lib/components/flex/Centered';
 import Margin from '@codesandbox/common/lib/components/spacing/Margin';
@@ -10,14 +9,14 @@ import getDefinition from '@codesandbox/common/lib/templates';
 import { Sandbox } from '@codesandbox/common/lib/types';
 import { getModulePath } from '@codesandbox/common/lib/sandbox/modules';
 import Tooltip from '@codesandbox/common/lib/components/Tooltip';
-import UIIcon from 'react-icons/lib/md/dvr';
-import QuestionIcon from 'react-icons/lib/go/question';
-
-import { Props } from './types';
+import { Title } from 'app/components/Title';
+import { SubTitle } from 'app/components/SubTitle';
+import Loadable from 'app/utils/Loadable';
 import ImageViewer from './ImageViewer';
 import Configuration from './Configuration';
 import VSCode from './VSCode';
 import MonacoDiff from './MonacoDiff';
+import { Props } from './types';
 import { Icons, Icon } from './elements';
 
 const CodeMirror = Loadable(() =>
@@ -65,7 +64,7 @@ type State = {
 export default class CodeEditor extends React.PureComponent<
   Props & {
     editor?: 'vscode' | 'monaco' | 'codemirror';
-    style: React.CSSProperties;
+    style?: React.CSSProperties;
   },
   State
 > {
@@ -185,13 +184,12 @@ export default class CodeEditor extends React.PureComponent<
           ...props.style,
         }}
       >
-        {!isModuleSynced(module.shortid) &&
-          module.title === 'index.html' && (
-            <Icons>
-              You may have to save this file and refresh the preview to see
-              changes
-            </Icons>
-          )}
+        {!isModuleSynced(module.shortid) && module.title === 'index.html' && (
+          <Icons>
+            You may have to save this file and refresh the preview to see
+            changes
+          </Icons>
+        )}
         {config &&
           (getUI(config.type) && !settings.experimentVSCode ? (
             <Icons>

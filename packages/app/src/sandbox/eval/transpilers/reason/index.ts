@@ -1,5 +1,3 @@
-// @flow
-
 import { basename, dirname, join } from 'path';
 import stripANSI from 'strip-ansi';
 
@@ -155,6 +153,7 @@ ${usedCode}
       .join('\n\n');
 
     const {
+      // eslint-disable-next-line camelcase
       js_code,
       js_error_msg: errorMessage,
       row,

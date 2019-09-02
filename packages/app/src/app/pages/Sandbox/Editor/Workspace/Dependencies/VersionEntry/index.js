@@ -3,7 +3,7 @@ import CrossIcon from 'react-icons/lib/md/clear';
 import RefreshIcon from 'react-icons/lib/md/refresh';
 import ArrowDropDown from 'react-icons/lib/md/keyboard-arrow-down';
 import ArrowDropUp from 'react-icons/lib/md/keyboard-arrow-up';
-import algoliasearch from 'algoliasearch';
+import algoliasearch from 'algoliasearch/lite';
 import compareVersions from 'compare-versions';
 import Tooltip from '@codesandbox/common/lib/components/Tooltip';
 
@@ -70,15 +70,15 @@ export default class VersionEntry extends React.PureComponent {
       });
   }
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     const { dependencies, dependency } = this.props;
     const client = algoliasearch(
       'OFCNCOG2CU',
       '00383ecd8441ead30b1b0ff981c426f5'
     );
     const index = client.initIndex('npm-search');
-    index.search({ query: dependency, hitsPerPage: 1 }, (err, { hits }) => {
-      const versions = Object.keys(hits[0].versions).sort((a, b) => {
+    index.getObject(dependency, ['versions']).then(({ versions: results }) => {
+      const versions = Object.keys(results).sort((a, b) => {
         try {
           return compareVersions(b, a);
         } catch (e) {
@@ -126,6 +126,10 @@ export default class VersionEntry extends React.PureComponent {
   render() {
     const { dependencies, dependency } = this.props;
 
+    if (typeof dependencies[dependency] !== 'string') {
+      return null;
+    }
+
     const { hovering, version, size, open, versions } = this.state;
     return (
       <Fragment>
@@ -136,25 +140,23 @@ export default class VersionEntry extends React.PureComponent {
           <Link href={`https://www.npmjs.com/package/${dependency}`}>
             {dependency}
           </Link>
-          {hovering ? (
-            <VersionSelect
-              withSize={!!size.size}
-              hovering={hovering}
-              onChange={e => {
-                this.props.onRefresh(dependency, e.target.value);
-                this.setState({ hovering: false });
-              }}
-            >
-              {versions.map(a => (
-                <option selected={a === dependencies[dependency]}>{a}</option>
-              ))}
-            </VersionSelect>
-          ) : (
-            <Version withSize={!!size.size} hovering={hovering}>
-              {dependencies[dependency]}{' '}
-              {hovering && version && <span>({version})</span>}
-            </Version>
-          )}
+          <VersionSelect
+            hovering={hovering}
+            onChange={e => {
+              this.props.onRefresh(dependency, e.target.value);
+              this.setState({ hovering: false });
+            }}
+          >
+            {versions.map(a => (
+              <option key={a} selected={a === dependencies[dependency]}>
+                {a}
+              </option>
+            ))}
+          </VersionSelect>
+          <Version withSize={!!size.size} hovering={hovering}>
+            {dependencies[dependency]}{' '}
+            {hovering && version && <span>({version})</span>}
+          </Version>
 
           {hovering && (
             <IconArea>

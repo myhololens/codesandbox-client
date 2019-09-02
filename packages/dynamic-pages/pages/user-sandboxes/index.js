@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import WideSandbox from '@codesandbox/common/lib/components/WideSandbox';
+import Margin from '@codesandbox/common/lib/components/spacing/Margin';
 import VisibilitySensor from 'react-visibility-sensor';
 import Link from 'next/link';
 import { Button } from '@codesandbox/common/lib/components/Button';
@@ -32,18 +33,16 @@ const Sandboxes = ({ data, fetchUrl, profile, currentTab }) => {
   };
 
   // reset everything when tab changes
-  useEffect(
-    () => {
-      setSandboxes(data[1]);
-      setPage(1);
-    },
-    [currentTab]
-  );
+  useEffect(() => {
+    setSandboxes(data[1]);
+    setPage(1);
+  }, [currentTab, data]);
 
   return (
     <PageContainer>
       <Grid>
         <Sidebar {...profile} />
+
         <main>
           <TabNavigation>
             <Link
@@ -102,12 +101,14 @@ const Sandboxes = ({ data, fetchUrl, profile, currentTab }) => {
             `}
           >
             {sandboxes.map(sandbox => (
-              <WideSandbox
-                small
-                key={sandbox.id}
-                pickSandbox={({ id }) => openSandbox(id)}
-                sandbox={sandbox}
-              />
+              <Margin bottom={2} key={sandbox.id}>
+                <WideSandbox
+                  small
+                  key={sandbox.id}
+                  selectSandbox={({ id }) => openSandbox(id)}
+                  sandbox={sandbox}
+                />
+              </Margin>
             ))}
           </SandboxesWrapper>
           {more ? (

@@ -1,11 +1,10 @@
-// @flow
 import Template from './template';
 import { decorateSelector } from '../theme';
 
 export class VuePressTemplate extends Template {
   // The file to open by the editor
   getDefaultOpenedFiles() {
-   return ['/README.md', '/guide/README.md'];
+    return ['/README.md', '/guide/README.md'];
   }
 }
 export default new VuePressTemplate(
@@ -16,7 +15,7 @@ export default new VuePressTemplate(
   decorateSelector(() => '#4abf8a'),
   {
     mainFile: [], // 🤔
-    distDir: 'docs/.vuepress/dist',
+    distDir: '.vuepress/dist',
     isServer: true,
     showOnHomePage: true,
   }

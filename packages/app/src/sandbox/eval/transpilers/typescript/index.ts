@@ -1,5 +1,6 @@
 // @ts-ignore
-import TypeScriptWorker from 'worker-loader?publicPath=/&name=typescript-transpiler.[hash:8].worker.js!./typescript-worker.js';
+import TypeScriptWorker from 'worker-loader?publicPath=/&name=typescript-transpiler.[hash:8].worker.js!./typescript-worker';
+import { getDependenciesFromConfig } from 'sandbox/eval/utils/get-dependencies';
 
 import WorkerTranspiler from '../worker-transpiler';
 import { LoaderContext } from '../../transpiled-module';
@@ -20,6 +21,7 @@ class TypeScriptTranspiler extends WorkerTranspiler {
       const path = loaderContext.path;
 
       let foundConfig = null;
+      let typescriptVersion = '3.4.1';
       if (
         loaderContext.options.configurations &&
         loaderContext.options.configurations.typescript &&
@@ -28,11 +30,19 @@ class TypeScriptTranspiler extends WorkerTranspiler {
         foundConfig = loaderContext.options.configurations.typescript.parsed;
       }
 
+      const dependencies = getDependenciesFromConfig(
+        loaderContext.options.configurations
+      );
+      if (dependencies && dependencies.typescript) {
+        typescriptVersion = dependencies.typescript;
+      }
+
       this.queueTask(
         {
           code,
           path,
           config: foundConfig,
+          typescriptVersion,
         },
         loaderContext._module.getId(),
         loaderContext,

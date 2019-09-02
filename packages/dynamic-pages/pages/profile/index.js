@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import FeaturedSandbox from '@codesandbox/common/lib/components/FeaturedSandbox';
 import WideSandbox from '@codesandbox/common/lib/components/WideSandbox';
+import Margin from '@codesandbox/common/lib/components/spacing/Margin';
 import { camelizeKeys } from 'humps';
 
 import openSandbox from '../../utils/openSandbox';
@@ -50,14 +51,15 @@ const Profile = ({ profile, liked, showcased }) =>
             `}
           >
             {profile.top_sandboxes.map(sandbox => (
-              <WideSandbox
-                defaultHeight={170}
-                noMargin
-                small
-                key={sandbox.id}
-                pickSandbox={({ id }) => openSandbox(id)}
-                sandbox={sandbox}
-              />
+              <Margin key={sandbox.id} bottom={2}>
+                <WideSandbox
+                  defaultHeight={170}
+                  noMargin
+                  small
+                  selectSandbox={({ id }) => openSandbox(id)}
+                  sandbox={sandbox}
+                />
+              </Margin>
             ))}
             <More>
               <Link
@@ -78,18 +80,18 @@ const Profile = ({ profile, liked, showcased }) =>
               margin-bottom: 48px;
             `}
           >
-            {liked[1]
-              .slice(0, 5)
-              .map(sandbox => (
+            {liked[1].slice(0, 5).map(sandbox => (
+              <Margin key={sandbox.id} bottom={2}>
                 <WideSandbox
                   noMargin
                   defaultHeight={170}
                   small
                   key={sandbox.id}
-                  pickSandbox={({ id }) => openSandbox(id)}
+                  selectSandbox={({ id }) => openSandbox(id)}
                   sandbox={sandbox}
                 />
-              ))}
+              </Margin>
+            ))}
             {liked[1].length > 5 && (
               <More>
                 <Link

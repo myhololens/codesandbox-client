@@ -1,14 +1,29 @@
 import axios from 'axios';
+import { client } from 'app/graphql/client';
+import { LIST_TEMPLATES } from 'app/pages/Dashboard/queries';
 
 import { generateFileFromSandbox } from '@codesandbox/common/lib/templates/configuration/package-json';
+import { parseSandboxConfigurations } from '@codesandbox/common/lib/templates/configuration/parse-sandbox-configurations';
 import track, {
   identify,
   setUserId,
 } from '@codesandbox/common/lib/utils/analytics';
+import {
+  sandboxUrl,
+  editorUrl,
+} from '@codesandbox/common/lib/utils/url-generator';
+import { notificationState } from '@codesandbox/common/lib/utils/notifications';
+import { NotificationStatus } from '@codesandbox/notifications';
 
-import { parseConfigurations } from './utils/parse-configurations';
 import { mainModule, defaultOpenedModule } from './utils/main-module';
 import getItems from './modules/workspace/items';
+
+/**
+ * We use this to eagerly load templates for the new sandbox modal.
+ */
+export function loadTemplatesForStartModal() {
+  client.query({ query: LIST_TEMPLATES, variables: { showAll: true } });
+}
 
 export function getSandbox({ props, api, path }) {
   return api
@@ -25,6 +40,28 @@ export function getSandbox({ props, api, path }) {
 
       return path.error({ error });
     });
+}
+
+/**
+ * Sometimes the alias is set as "id" in the url, if we already have that
+ * sandbox in the state we need to make sure that the id is set correctly.
+ * This function is reps
+ */
+export function setIdFromAlias({ props, state }) {
+  if (state.get(`editor.sandboxes.${props.id}`)) {
+    return {};
+  }
+
+  const sandboxes = state.get(`editor.sandboxes`).toJSON();
+  const matchingSandbox = Object.keys(sandboxes).find(
+    id => sandboxUrl(sandboxes[id]) === `${editorUrl()}${props.id}`
+  );
+
+  if (matchingSandbox) {
+    return { id: matchingSandbox };
+  }
+
+  return {};
 }
 
 export function callVSCodeCallback({ props }) {
@@ -52,6 +89,7 @@ export function callVSCodeCallbackError({ props }) {
 export function setWorkspace({ controller, state, props }) {
   state.set('workspace.project.title', props.sandbox.title || '');
   state.set('workspace.project.description', props.sandbox.description || '');
+  state.set('workspace.project.alias', props.sandbox.alias || '');
 
   const items = getItems(controller.getState());
   const defaultItem = items.find(i => i.defaultOpen) || items[0];
@@ -131,19 +169,44 @@ export function setCurrentModuleShortid({ props, state }) {
   const sandbox = props.sandbox;
 
   // Only change the module shortid if it doesn't exist in the new sandbox
-  if (
-    sandbox.modules.map(m => m.shortid).indexOf(currentModuleShortid) === -1
-  ) {
-    const parsedConfigs = parseConfigurations(sandbox);
+  if (!sandbox.modules.map(m => m.shortid).includes(currentModuleShortid)) {
+    const parsedConfigs = parseSandboxConfigurations(sandbox);
     const module = defaultOpenedModule(sandbox, parsedConfigs);
 
     state.set('editor.currentModuleShortid', module.shortid);
   }
 }
 
+export function showUserSurveyIfNeeded({ state, controller, api }) {
+  if (state.get('user.sendSurvey')) {
+    // Let the server know that we've seen the survey
+    api.post('/users/survey-seen', {});
+
+    notificationState.addNotification({
+      title: 'Help improve CodeSandbox',
+      message:
+        "We'd love to hear your thoughts, it's 7 questions and will only take 2 minutes.",
+      status: NotificationStatus.NOTICE,
+      sticky: true,
+      actions: {
+        primary: [
+          {
+            label: 'Open Survey',
+            run: () => {
+              controller.getSignal('modalOpened')({
+                modal: 'userSurvey',
+              });
+            },
+          },
+        ],
+      },
+    });
+  }
+}
+
 export function setMainModuleShortid({ props, state }) {
   const sandbox = props.sandbox;
-  const parsedConfigs = parseConfigurations(sandbox);
+  const parsedConfigs = parseSandboxConfigurations(sandbox);
   const module = mainModule(sandbox, parsedConfigs);
 
   state.set('editor.mainModuleShortid', module.shortid);
@@ -168,7 +231,7 @@ export function getGitChanges({ api, state }) {
     .then(gitChanges => ({ gitChanges }));
 }
 
-export function forkSandbox({ state, props, api }) {
+export function forkSandbox({ state, props, api, path }) {
   const sandboxId = props.sandboxId || state.get('editor.currentId');
   const url = sandboxId.includes('/')
     ? `/sandboxes/fork/${sandboxId}`
@@ -176,7 +239,8 @@ export function forkSandbox({ state, props, api }) {
 
   return api
     .post(url, props.body || {})
-    .then(data => ({ forkedSandbox: data }));
+    .then(data => path.success({ forkedSandbox: data }))
+    .catch(error => path.error({ error }));
 }
 
 export function moveModuleContent({ props, state }) {
@@ -184,16 +248,16 @@ export function moveModuleContent({ props, state }) {
 
   if (currentSandbox) {
     return {
-      sandbox: Object.assign({}, props.forkedSandbox, {
-        modules: props.forkedSandbox.modules.map(module =>
-          Object.assign(module, {
-            code: currentSandbox.modules.find(
-              currentSandboxModule =>
-                currentSandboxModule.shortid === module.shortid
-            ).code,
-          })
-        ),
-      }),
+      sandbox: {
+        ...props.forkedSandbox,
+        modules: props.forkedSandbox.modules.map(module => ({
+          ...module,
+          code: currentSandbox.modules.find(
+            currentSandboxModule =>
+              currentSandboxModule.shortid === module.shortid
+          ).code,
+        })),
+      },
     };
   }
 
@@ -298,10 +362,21 @@ export function getUser({ api, path }) {
   return api
     .get('/users/current')
     .then(data => path.success({ user: data }))
-    .catch(() => path.error());
+    .catch(e => {
+      if (e.response.status === 401) {
+        return path.unauthorized();
+      }
+
+      return path.error();
+    });
 }
 
 export function connectWebsocket({ socket }) {
+  if (process.env.LOCAL_SERVER) {
+    // TODO: Make the ws proxy work in start.js
+    return {};
+  }
+
   return socket.connect();
 }
 
@@ -314,8 +389,9 @@ export function setJwtFromStorage({ jwt, state }) {
   state.set('jwt', jwt.get() || null);
 }
 
-export function removeJwtFromStorage({ jwt }) {
+export function removeJwtFromStorage({ jwt, state }) {
   jwt.reset();
+  state.set('jwt', null);
 }
 
 export function setSignedInCookie({ props }) {
@@ -398,7 +474,7 @@ export function createPackageJSON({ props }) {
 export function getContributors({ state }) {
   return window
     .fetch(
-      'https://raw.githubusercontent.com/CompuIves/codesandbox-client/master/.all-contributorsrc'
+      'https://raw.githubusercontent.com/codesandbox/codesandbox-client/master/.all-contributorsrc'
     )
     .then(x => x.json())
     .then(x => x.contributors.map(u => u.login))

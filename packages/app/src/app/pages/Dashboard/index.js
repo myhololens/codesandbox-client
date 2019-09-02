@@ -1,6 +1,6 @@
 // @ts-check
 import * as React from 'react';
-import { inject, observer } from 'mobx-react';
+import { inject, observer } from 'app/componentConnectors';
 import RightIcon from 'react-icons/lib/md/keyboard-arrow-right';
 import LeftIcon from 'react-icons/lib/md/keyboard-arrow-left';
 import { withRouter } from 'react-router-dom';
@@ -52,7 +52,11 @@ class Dashboard extends React.Component {
     } = this.props;
     const { showSidebar } = this.state;
 
-    history.listen(() => {
+    history.listen(({ state }) => {
+      if (!!state && state.from === 'sandboxSearchFocused') {
+        return;
+      }
+
       this.onRouteChange();
     });
 

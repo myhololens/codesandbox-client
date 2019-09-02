@@ -42,6 +42,7 @@ exports.createPages = async ({ graphql, actions }) => {
 
   const docsTemplate = resolve(__dirname, './src/templates/docs.js');
   const blogTemplate = resolve(__dirname, './src/templates/post.js');
+  const jobTemplate = resolve(__dirname, './src/templates/job.js');
 
   // Redirect /index.html to root.
   createRedirect({
@@ -50,38 +51,6 @@ exports.createPages = async ({ graphql, actions }) => {
     toPath: '/',
   });
 
-  const blogsFromMedium = await graphql(`
-    {
-      allFeedMediumBlog {
-        edges {
-          node {
-            id
-            title
-            categories
-          }
-        }
-      }
-    }
-  `);
-
-  blogsFromMedium.data.allFeedMediumBlog.edges.forEach(edge => {
-    const slug = edge.node.title
-      .toLowerCase()
-      .replace(/[^\w ]+/g, '')
-      .replace(/ +/g, '-');
-    const id = edge.node.id;
-
-    // If there are no categories it's a comment
-    if (edge.node.categories) {
-      createPage({
-        path: 'post/' + slug,
-        component: blogTemplate,
-        context: {
-          id,
-        },
-      });
-    }
-  });
   const allMarkdownArticles = await graphql(
     `
       {
@@ -101,21 +70,18 @@ exports.createPages = async ({ graphql, actions }) => {
       }
     `
   );
+  allMarkdownArticles.data.allMarkdownRemark.edges.forEach(edge => {
+    const slug = edge.node.frontmatter.slug;
+    const id = edge.node.id;
 
-  if (allMarkdownArticles.data) {
-    allMarkdownArticles.data.allMarkdownRemark.edges.forEach(edge => {
-      const slug = edge.node.frontmatter.slug;
-      const id = edge.node.id;
-
-      createPage({
-        path: 'blog/' + slug,
-        component: blogTemplate,
-        context: {
-          id,
-        },
-      });
+    createPage({
+      path: 'post/' + slug,
+      component: blogTemplate,
+      context: {
+        id,
+      },
     });
-  }
+  });
 
   const allDocs = await graphql(
     `
@@ -136,13 +102,11 @@ exports.createPages = async ({ graphql, actions }) => {
       }
     `
   );
-
   if (allDocs.errors) {
     console.error(allDocs.errors);
 
     throw Error(allDocs.errors);
   }
-
   allDocs.data.allMarkdownRemark.edges.forEach(edge => {
     const slug = edge.node.fields.slug;
     const url = edge.node.fields.url;
@@ -166,6 +130,37 @@ exports.createPages = async ({ graphql, actions }) => {
       createArticlePage(url || slug);
     }
   });
+
+  // JOBS
+
+  const allJobs = await graphql(
+    `
+      {
+        allMarkdownRemark(
+          filter: { fileAbsolutePath: { regex: "/jobs/" } }
+          limit: 1000
+        ) {
+          edges {
+            node {
+              id
+              frontmatter {
+                slug
+              }
+            }
+          }
+        }
+      }
+    `
+  );
+  if (allJobs.data) {
+    allJobs.data.allMarkdownRemark.edges.forEach(edge => {
+      createPage({
+        path: 'job/' + edge.node.frontmatter.slug,
+        component: jobTemplate,
+        context: { id: edge.node.id },
+      });
+    });
+  }
 };
 
 exports.onCreateWebpackConfig = ({
@@ -222,6 +217,13 @@ exports.onCreateWebpackConfig = ({
         !/node_modules\/(common|app)/.test(modulePath),
     },
   ];
+
+  if (process.env.CIRCLECI && config.optimization) {
+    // eslint-disable-next-line no-console
+    console.log('Setting new parallel option for CircleCI');
+    // CircleCI has 32cpu cores, but only 2 for us. os.cpu().length gives back 32, which always results in OOM
+    config.optimization.minimizer[0].options.parallel = 2;
+  }
 
   // This will completely replace the webpack config with the modified object.
   actions.replaceWebpackConfig(config);

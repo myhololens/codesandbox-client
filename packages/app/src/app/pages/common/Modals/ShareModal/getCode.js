@@ -1,3 +1,4 @@
+import { getSandboxName } from '@codesandbox/common/lib/utils/get-sandbox-name';
 import { getModulePath } from '@codesandbox/common/lib/sandbox/modules';
 import {
   optionsToParameterizedUrl,
@@ -5,6 +6,7 @@ import {
   sandboxUrl,
   embedUrl,
 } from '@codesandbox/common/lib/utils/url-generator';
+import { escapeHtml } from 'app/utils/escape';
 
 export const BUTTON_URL = `${
   process.env.CODESANDBOX_HOST
@@ -64,16 +66,17 @@ export const getEmbedUrl = (sandbox, mainModule, state) =>
   getOptionsUrl(sandbox, mainModule, state);
 
 export const getIframeScript = (sandbox, mainModule, state) =>
-  `<iframe src="${getEmbedUrl(
-    sandbox,
-    mainModule,
-    state
-  )}" title="${sandbox.title || sandbox.id}" style="width:100%; height:500px; border:0; border-radius: 4px; overflow:hidden;" sandbox="allow-modals allow-forms allow-popups allow-scripts allow-same-origin"></iframe>`;
+  `<iframe src="${getEmbedUrl(sandbox, mainModule, state)}" title="${escapeHtml(
+    getSandboxName(sandbox)
+  )}" allow="geolocation; microphone; camera; midi; vr; accelerometer; gyroscope; payment; ambient-light-sensor; encrypted-media; usb" style="width:100%; height:500px; border:0; border-radius: 4px; overflow:hidden;" sandbox="allow-modals allow-forms allow-popups allow-scripts allow-same-origin"></iframe>`;
 
 // eslint-disable-next-line
 export const getButtonMarkdown = (sandbox, mainModule, state) => {
-  return `[![Edit ${sandbox.title ||
-    sandbox.id}](${BUTTON_URL})](${getEditorUrl(sandbox, mainModule, state)})`;
+  return `[![Edit ${getSandboxName(sandbox)}](${BUTTON_URL})](${getEditorUrl(
+    sandbox,
+    mainModule,
+    state
+  )})`;
 };
 
 // eslint-disable-next-line

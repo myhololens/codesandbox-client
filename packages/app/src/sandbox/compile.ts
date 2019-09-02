@@ -1,10 +1,12 @@
 import { dispatch, reattach, clearErrorTransformers } from 'codesandbox-api';
+import { flatten } from 'lodash';
 import { absolute } from '@codesandbox/common/lib/utils/path';
 import _debug from '@codesandbox/common/lib/utils/debug';
 import parseConfigurations from '@codesandbox/common/lib/templates/configuration/parse';
 import initializeErrorTransformers from 'sandbox-hooks/errors/transformers';
 import { inject, unmount } from 'sandbox-hooks/react-error-overlay/overlay';
 import { isBabel7 } from '@codesandbox/common/lib/utils/is-babel-7';
+import { ParsedConfigurationFiles } from '@codesandbox/common/lib/templates/template';
 import getDefinition, {
   TemplateType,
 } from '@codesandbox/common/lib/templates/index';
@@ -30,7 +32,6 @@ import { consumeCache, saveCache, deleteAPICache } from './eval/cache';
 
 import { showRunOnClick } from './status-screen/run-on-click';
 import { Module } from './eval/entities/module';
-import { ParsedConfigurationFiles } from '@codesandbox/common/lib/templates/template';
 import TranspiledModule from './eval/transpiled-module';
 
 let initializedResizeListener = false;
@@ -63,8 +64,11 @@ export function getHTMLParts(html: string) {
   return { head: '', body: html };
 }
 
-function sendTestCount(manager: Manager, modules: Array<Module>) {
-  const testRunner = manager.testRunner;
+function sendTestCount(
+  givenManager: Manager,
+  modules: { [path: string]: Module }
+) {
+  const testRunner = givenManager.testRunner;
   const tests = testRunner.findTests(modules);
 
   dispatch({
@@ -195,7 +199,6 @@ const PREINSTALLED_DEPENDENCIES = [
   'babel-plugin-detective',
   'babel-plugin-transform-prevent-infinite-loops',
   'babel-plugin-transform-vue-jsx',
-  'babel-plugin-jsx-pragmatic',
   'flow-bin',
   ...BABEL_DEPENDENCIES,
 ];
@@ -213,9 +216,9 @@ function getDependencies(parsedPackage, templateDefinition, configurations) {
 
   // Add all babel plugins/presets to whitelisted dependencies
   if (configurations && configurations.babel && configurations.babel.parsed) {
-    (configurations.babel.parsed.presets || [])
+    flatten(configurations.babel.parsed.presets || [])
       .filter(p => typeof p === 'string')
-      .forEach(p => {
+      .forEach((p: string) => {
         const [first, ...parts] = p.split('/');
         const prefixedName = p.startsWith('@')
           ? first + '/babel-preset-' + parts.join('/')
@@ -225,9 +228,9 @@ function getDependencies(parsedPackage, templateDefinition, configurations) {
         foundWhitelistedDevDependencies.push(prefixedName);
       });
 
-    (configurations.babel.parsed.plugins || [])
+    flatten(configurations.babel.parsed.plugins || [])
       .filter(p => typeof p === 'string')
-      .forEach(p => {
+      .forEach((p: string) => {
         const [first, ...parts] = p.split('/');
         const prefixedName = p.startsWith('@')
           ? first + '/babel-plugin-' + parts.join('/')
@@ -250,7 +253,18 @@ function getDependencies(parsedPackage, templateDefinition, configurations) {
 
   Object.keys(devDependencies).forEach(dep => {
     const usedDep = DEPENDENCY_ALIASES[dep] || dep;
+
     if (foundWhitelistedDevDependencies.indexOf(usedDep) > -1) {
+      if (
+        usedDep === '@vue/babel-preset-app' &&
+        devDependencies[dep].startsWith('^3')
+      ) {
+        // Native modules got added in 3.7.0, we need to hardcode to latest
+        // working version of the babel plugin as a fix. https://twitter.com/notphanan/status/1122475053633941509
+        returnedDependencies[usedDep] = '3.6.0';
+        return;
+      }
+
       returnedDependencies[usedDep] = devDependencies[dep];
     }
   });
@@ -384,6 +398,20 @@ overrideDocumentClose();
 
 inject();
 
+interface CompileOptions {
+  sandboxId: string;
+  modules: { [path: string]: Module };
+  externalResources: string[];
+  hasActions?: boolean;
+  isModuleView?: boolean;
+  template: TemplateType;
+  entry: string;
+  showOpenInCodeSandbox?: boolean;
+  skipEval?: boolean;
+  hasFileResolver?: boolean;
+  disableDependencyPreprocessing?: boolean;
+}
+
 async function compile({
   sandboxId,
   modules,
@@ -396,7 +424,7 @@ async function compile({
   skipEval = false,
   hasFileResolver = false,
   disableDependencyPreprocessing = false,
-}) {
+}: CompileOptions) {
   dispatch({
     type: 'start',
   });
@@ -485,7 +513,7 @@ async function compile({
 
     const foundMain = isModuleView
       ? entry
-      : possibleEntries.find(p => modules[p]);
+      : possibleEntries.find(p => Boolean(modules[p]));
 
     if (!foundMain) {
       throw new Error(
@@ -539,15 +567,15 @@ async function compile({
       if (!manager.webpackHMR) {
         const htmlModulePath = templateDefinition
           .getHTMLEntries(configurations)
-          .find(p => modules[p]);
+          .find(p => Boolean(modules[p]));
         const htmlModule = modules[htmlModulePath];
 
         const { head, body } = getHTMLParts(
           htmlModule && htmlModule.code
             ? htmlModule.code
             : template === 'vue-cli'
-              ? '<div id="app"></div>'
-              : '<div id="root"></div>'
+            ? '<div id="app"></div>'
+            : '<div id="root"></div>'
         );
 
         if (lastHeadHTML && lastHeadHTML !== head) {
@@ -598,6 +626,7 @@ async function compile({
             try {
               await evalBoilerplates(defaultBoilerplates);
             } catch (e) {
+              // eslint-disable-next-line no-console
               console.log("Couldn't load all boilerplates: " + e.message);
             }
           }
@@ -649,6 +678,7 @@ async function compile({
       }
     }, 600);
   } catch (e) {
+    // eslint-disable-next-line no-console
     console.log('Error in sandbox:');
     console.error(e);
 
@@ -699,28 +729,14 @@ async function compile({
   firstLoad = false;
 
   dispatch({ type: 'status', status: 'idle' });
-  dispatch({ type: 'done' });
+  dispatch({ type: 'done', compilatonError: hadError });
 
   if (typeof (window as any).__puppeteer__ === 'function') {
     (window as any).__puppeteer__('done');
   }
 }
 
-type Arguments = {
-  sandboxId: string;
-  modules: Array<{
-    code: string;
-    path: string;
-  }>;
-  entry: string | undefined;
-  externalResources: Array<string>;
-  hasActions: boolean;
-  template: string;
-  showOpenInCodeSandbox?: boolean;
-  skipEval?: boolean;
-};
-
-const tasks: Array<Arguments> = [];
+const tasks: CompileOptions[] = [];
 let runningTask = false;
 
 async function executeTaskIfAvailable() {
@@ -741,7 +757,7 @@ async function executeTaskIfAvailable() {
  * and if there are 3 tasks we will remove the second task, this one is unnecessary as it is not the
  * latest version.
  */
-export default function queueTask(data: Arguments) {
+export default function queueTask(data: CompileOptions) {
   tasks[0] = data;
 
   if (!runningTask) {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { inject } from 'mobx-react';
+import { inject, hooksObserver } from 'app/componentConnectors';
 import styled from 'styled-components';
 
 import { Mutation } from 'react-apollo';
@@ -26,7 +26,7 @@ const AddTeamMember = ({ teamId, signals }) => (
         e.preventDefault();
         e.stopPropagation();
 
-        let isEmail = input.value.indexOf('@') > -1;
+        let isEmail = input.value.includes('@');
 
         track('Team - Add Member', { email: isEmail });
 
@@ -82,4 +82,4 @@ const AddTeamMember = ({ teamId, signals }) => (
   </Mutation>
 );
 
-export default inject('signals')(AddTeamMember);
+export default inject('signals')(hooksObserver(AddTeamMember));

@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { type LoaderContext } from '../../../../transpiled-module';
 // vue compiler module for transforming `<tag>:<attribute>` to `require`
 
@@ -8,7 +9,7 @@ var defaultOptions = {
 
 export default (userOptions, loaderContext: LoaderContext) => {
   var options = userOptions
-    ? Object.assign({}, defaultOptions, userOptions)
+    ? { ...defaultOptions, userOptions }
     : defaultOptions;
 
   return {

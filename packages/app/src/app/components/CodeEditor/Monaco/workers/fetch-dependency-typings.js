@@ -99,17 +99,6 @@ const tempTransformFiles = files => {
   return finalObj;
 };
 
-const transformFiles = dir =>
-  dir.files
-    ? dir.files.reduce((prev, next) => {
-        if (next.type === 'file') {
-          return { ...prev, [next.path]: next };
-        }
-
-        return { ...prev, ...transformFiles(next) };
-      }, {})
-    : {};
-
 const getFileMetaData = (dependency, version, depPath) =>
   doFetch(
     `https://data.jsdelivr.com/v1/package/npm/${dependency}@${version}/flat`
@@ -191,13 +180,17 @@ function fetchFromMeta(dependency, version, fetchedPaths) {
         throw new Error('No inline typings found.');
       }
 
-      return Promise.all(dtsFiles.map(file =>
-        doFetch(`https://cdn.jsdelivr.net/npm/${dependency}@${version}${file}`)
-          .then(dtsFile =>
-            addLib(`node_modules/${dependency}${file}`, dtsFile, fetchedPaths)
+      return Promise.all(
+        dtsFiles.map(file =>
+          doFetch(
+            `https://cdn.jsdelivr.net/npm/${dependency}@${version}${file}`
           )
-          .catch(() => {})
-      ));
+            .then(dtsFile =>
+              addLib(`node_modules/${dependency}${file}`, dtsFile, fetchedPaths)
+            )
+            .catch(() => {})
+        )
+      );
     });
 }
 
@@ -243,7 +236,7 @@ async function fetchAndAddDependencies(dependencies) {
   await Promise.all(
     depNames.map(async dep => {
       try {
-        if (loadedTypings.indexOf(dep) === -1) {
+        if (!loadedTypings.includes(dep)) {
           loadedTypings.push(dep);
 
           const depVersion = await doFetch(

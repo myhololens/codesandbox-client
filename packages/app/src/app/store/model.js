@@ -39,21 +39,14 @@ export default {
         types.model({
           amount: types.number,
           since: types.string,
+          cancelAtPeriodEnd: types.maybeNull(types.boolean),
         })
       ),
       username: types.maybeNull(types.string),
+      sendSurvey: types.maybeNull(types.boolean),
     })
   ),
   connected: types.boolean,
-  notifications: types.array(
-    types.model({
-      buttons: types.array(types.string),
-      endTime: types.number,
-      id: types.number,
-      notificationType: types.string,
-      title: types.string,
-    })
-  ),
   isLoadingCLI: types.boolean,
   isLoadingGithub: types.boolean,
   isLoadingZeit: types.boolean,

@@ -70,6 +70,7 @@ const theme = {
     lightText: '#F2F2F2',
     secondary: '#40A9F3',
     shySecondary: '#66b9f4',
+    darkBlue: '#1081D0',
     white: '#E0E0E0',
     gray: '#C0C0C0',
     black: '#74757D',
@@ -78,6 +79,8 @@ const theme = {
     red: '#F27777',
     dangerBackground: '#DC3545',
     sidebar: '#191d1f',
+    placeholder: '#B8B9BA',
+    link: '#40a9f3',
   }),
   vscodeTheme: codesandbox,
 

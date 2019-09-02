@@ -1,3 +1,5 @@
+import immer from 'immer';
+
 import { absolute } from '../utils/path';
 import {
   ConfigurationFile,
@@ -26,8 +28,16 @@ export type ConfigurationFiles = {
   [path: string]: ConfigurationFile;
 };
 
+export type Dependencies = { [name: string]: string };
+
 export type ParsedConfigurationFiles = {
-  [path: string]: ParsedConfigurationFile;
+  package?: ParsedConfigurationFile<{
+    main: string;
+    dependencies?: Dependencies;
+    devDependencies: Dependencies;
+    [otherProperties: string]: any | undefined;
+  }>;
+  [path: string]: ParsedConfigurationFile<any> | undefined;
 };
 
 const defaultConfigurations = {
@@ -38,9 +48,15 @@ const defaultConfigurations = {
   '/netlify.toml': configurations.netlifyConfig,
 };
 
+export interface ViewTab {
+  id: string;
+  closeable?: boolean;
+  options?: any;
+}
+
 export type ViewConfig = {
   open?: boolean;
-  views: Array<{ id: string; options?: any }>;
+  views: ViewTab[];
 };
 
 const CLIENT_VIEWS: ViewConfig[] = [
@@ -58,7 +74,11 @@ const SERVER_VIEWS: ViewConfig[] = [
   },
   {
     open: true,
-    views: [{ id: 'codesandbox.terminal' }, { id: 'codesandbox.console' }],
+    views: [
+      { id: 'codesandbox.terminal' },
+      { id: 'codesandbox.console' },
+      { id: 'codesandbox.problems' },
+    ],
   },
 ];
 
@@ -69,7 +89,7 @@ export default class Template {
   url: string;
   main: boolean;
   color: () => string;
-  backgroundColor: (() => string | undefined);
+  backgroundColor: () => string | undefined;
 
   popular: boolean;
   showOnHomePage: boolean;
@@ -118,6 +138,7 @@ export default class Template {
     this.showCube = options.showCube != null ? options.showCube : true;
   }
 
+  // eslint-disable-next-line
   private getMainFromPackage(pkg: {
     main?: string[] | string;
   }): string | undefined {
@@ -133,7 +154,10 @@ export default class Template {
       if (typeof pkg.main === 'string') {
         return absolute(pkg.main);
       }
-    } catch (e) {}
+    } catch (e) {
+      // eslint-disable-next-line
+      console.log(e);
+    }
   }
 
   /**
@@ -143,6 +167,7 @@ export default class Template {
     return [
       configurationFiles.package &&
         this.getMainFromPackage(configurationFiles.package.parsed),
+      ...(this.mainFile || []),
       '/index.' + (this.isTypescript ? 'ts' : 'js'),
       '/src/index.' + (this.isTypescript ? 'ts' : 'js'),
       '/src/index.ts',
@@ -153,7 +178,8 @@ export default class Template {
       '/index.js',
       '/index.ts',
       '/index.tsx',
-      ...(this.mainFile || []),
+      '/README.md',
+      '/package.json',
     ].filter(x => x);
   }
 
@@ -169,16 +195,26 @@ export default class Template {
   /**
    * Get the views that are tied to the template
    */
-  getViews(): ViewConfig[] {
+  getViews(configurationFiles: ParsedConfigurationFiles): ViewConfig[] {
     if (this.isServer) {
       return SERVER_VIEWS;
+    }
+
+    const dependencies =
+      configurationFiles.package &&
+      configurationFiles.package.parsed &&
+      configurationFiles.package.parsed.dependencies;
+    if (dependencies && dependencies.react) {
+      return immer(CLIENT_VIEWS, draft => {
+        draft[1].views.push({ id: 'codesandbox.react-devtools' });
+      });
     }
 
     return CLIENT_VIEWS;
   }
 
   // eslint-disable-next-line no-unused-vars
-  getHTMLEntries(configurationFiles: { [type: string]: Object }): string[] {
+  getHTMLEntries(configurationFiles: ParsedConfigurationFiles): string[] {
     return ['/public/index.html', '/index.html'];
   }
 

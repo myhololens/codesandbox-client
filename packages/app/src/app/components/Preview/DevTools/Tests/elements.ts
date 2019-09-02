@@ -1,4 +1,3 @@
-
 import styled, { css } from 'styled-components';
 
 import Check from 'react-icons/lib/go/check';
@@ -11,8 +10,9 @@ export const Container = styled.div`
   width: 100%;
   height: 100%;
 
-  background-color: ${props => props.theme.background4};
-  color: rgba(255, 255, 255, 0.8);
+  background-color: ${props => props.theme['sideBar.background']};
+  color: ${props =>
+    props.theme.light ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)'};
 `;
 
 export const Navigation = styled.div`
@@ -24,13 +24,13 @@ export const Navigation = styled.div`
 `;
 
 export const TestContainer = styled(Navigation)`
-  background-color: ${props => props.theme.background2};
+  background-color: ${props => props.theme['sideBar.background']};
   height: 100%;
 `;
 
 export const TestDetails = styled.div`
   flex: 3;
-  background-color: ${props => props.theme.background};
+  background-color: ${props => props.theme['sideBar.background']};
   height: 100%;
 `;
 
@@ -57,7 +57,8 @@ export const Fail = styled(Cross)`
 
 export const Dot = styled(DotIcon)`
   ${iconStyles};
-  color: rgba(255, 255, 255, 0.3);
+  color: ${props =>
+    props.theme.light ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.3)'};
 `;
 
 export const StatusElements = {
@@ -66,3 +67,17 @@ export const StatusElements = {
   running: Loading,
   idle: Dot,
 };
+
+export const Tests = styled.div`
+  padding: 1rem;
+  box-sizing: border-box;
+  overflow-y: auto;
+
+  /* Using absolute for correct scrolling, browsers have trouble handling
+   * an inner scroll inside a container unless the child is absolute */
+  position: absolute;
+  top: 3.5rem;
+  bottom: 0;
+  left: 0;
+  right: 0;
+`;

@@ -2,12 +2,14 @@ import React from 'react';
 
 import getTemplate from '@codesandbox/common/lib/templates';
 import { protocolAndHost } from '@codesandbox/common/lib/utils/url-generator';
+import { getSandboxName } from '@codesandbox/common/lib/utils/get-sandbox-name';
 import {
   ARROW_LEFT,
   ARROW_RIGHT,
 } from '@codesandbox/common/lib/utils/keycodes';
 import FeaturedSandbox from '@codesandbox/common/lib/components/FeaturedSandbox';
 import WideSandbox from '@codesandbox/common/lib/components/WideSandbox';
+import Margin from '@codesandbox/common/lib/components/spacing/Margin';
 
 import TitleAndMetaTags from '../components/TitleAndMetaTags';
 import PageContainer from '../components/PageContainer';
@@ -205,7 +207,7 @@ export default class Explore extends React.PureComponent {
                   return (
                     <DotContainer key={sandbox.sandboxId}>
                       <Dot
-                        aria-label={sandbox.title || sandbox.id}
+                        aria-label={getSandboxName(sandbox)}
                         active={i === this.state.featuredSandboxIndex}
                         color={template.color()}
                         onClick={() =>
@@ -238,17 +240,20 @@ export default class Explore extends React.PureComponent {
             <Sandboxes>
               {this.state.sandboxes.length !== 0
                 ? this.state.sandboxes.map((sandbox, i) => (
-                    <WideSandbox
-                      // We force i here so we reuse the existing components
-                      // eslint-disable-next-line react/no-array-index-key,no-console
-                      key={i}
-                      pickSandbox={this.selectSandbox}
-                      sandbox={sandbox}
-                    />
+                    // We force i here so we reuse the existing components
+                    // eslint-disable-next-line react/no-array-index-key,no-console
+                    <Margin key={i} bottom={2}>
+                      <WideSandbox
+                        selectSandbox={this.selectSandbox}
+                        sandbox={sandbox}
+                      />
+                    </Margin>
                   ))
                 : new Array(16).fill(undefined).map((_, i) => (
                     // eslint-disable-next-line react/no-array-index-key,no-console
-                    <WideSandbox key={i} />
+                    <Margin key={i} bottom={2}>
+                      <WideSandbox />
+                    </Margin>
                   ))}
             </Sandboxes>
 

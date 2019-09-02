@@ -5,6 +5,8 @@ import { chunk } from 'lodash-es';
 import { MAX_FILE_SIZE } from 'codesandbox-import-utils/lib/is-text';
 import denormalize from 'codesandbox-import-utils/lib/utils/files/denormalize';
 import track from '@codesandbox/common/lib/utils/analytics';
+import { NotificationStatus } from '@codesandbox/notifications';
+import { notificationState } from '@codesandbox/common/lib/utils/notifications';
 
 import {
   resolveModuleWrapped,
@@ -119,7 +121,7 @@ export async function uploadFiles({ api, props, path }) {
   try {
     // We traverse all files and upload them when necessary, then add them to the
     // parsedFiles object
-    /* eslint-disable no-restricted-syntax no-await-in-loop */
+    /* eslint-disable no-restricted-syntax, no-await-in-loop */
     for (const filePathsChunk of chunkedFilePaths) {
       await Promise.all(
         filePathsChunk.map(async filePath => {
@@ -137,6 +139,8 @@ export async function uploadFiles({ api, props, path }) {
               /\.haml$/.test(filePath) ||
               /\.pug$/.test(filePath) ||
               /\.svg$/.test(filePath) ||
+              /\.md$/.test(filePath) ||
+              /\.svelte$/.test(filePath) ||
               file.type.startsWith('text/') ||
               file.type === 'application/json') &&
             dataURI.length < MAX_FILE_SIZE
@@ -653,14 +657,15 @@ export function recoverFiles({ recover, controller, state }) {
     })
     .filter(Boolean);
 
-  if (recoveredList.length > 0 && window.showNotification) {
+  if (recoveredList.length > 0) {
     track('Files Recovered', { fileCount: recoveredList.length });
-    window.showNotification(
-      `We recovered ${
+
+    notificationState.addNotification({
+      message: `We recovered ${
         recoveredList.length
       } unsaved files from a previous session`,
-      'notice'
-    );
+      status: NotificationStatus.NOTICE,
+    });
   }
 
   return {};

@@ -1,4 +1,5 @@
 // @flow
+// @ts-ignore
 import * as React from 'react';
 import { TextOperation } from 'ot';
 import { debounce } from 'lodash-es';
@@ -234,10 +235,13 @@ class MonacoEditor extends React.Component<Props, State> implements Editor {
     const { dependencies } = this;
     if (dependencies != null) {
       if (Object.keys(dependencies)) {
-        setTimeout(() => {
-          this.fetchDependencyTypings(dependencies);
-          this.getConfigSchemas();
-        }, this.hasNativeTypescript() ? 500 : 5000);
+        setTimeout(
+          () => {
+            this.fetchDependencyTypings(dependencies);
+            this.getConfigSchemas();
+          },
+          this.hasNativeTypescript() ? 500 : 5000
+        );
       }
     }
 
@@ -879,7 +883,6 @@ class MonacoEditor extends React.Component<Props, State> implements Editor {
 
       this.lintWorker.addEventListener('message', event => {
         const { markers, version } = event.data;
-
         requestAnimationFrame(() => {
           if (this.editor.getModel()) {
             const modelPath = this.editor.getModel().uri.path;
@@ -1020,7 +1023,7 @@ class MonacoEditor extends React.Component<Props, State> implements Editor {
   }
 
   lint = async (code: string, title: string, version: number) => {
-    const mode = await getMode(title, this.monaco);
+    const mode = (await getMode(title, this.monaco)) || 'typescript';
     if (this.settings.lintEnabled) {
       if (mode === 'javascript' || mode === 'vue') {
         if (this.lintWorker) {
@@ -1216,7 +1219,8 @@ class MonacoEditor extends React.Component<Props, State> implements Editor {
           // Related issue: https://github.com/Microsoft/monaco-editor/issues/461
           const lib = this.addLib(module.code || '', path);
 
-          const mode = await getMode(module.title, this.monaco);
+          const mode =
+            (await getMode(module.title, this.monaco)) || 'typescript';
 
           if (
             mode !== 'javascript' &&

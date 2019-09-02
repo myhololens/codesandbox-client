@@ -37,3 +37,16 @@ iframe {
 a {
   color: #40a9f3;
 }
+
+.gatsby-resp-image-image {
+  box-shadow: none !important;
+}
+
+.gatsby-resp-image-background-image {
+  background-image: none !important;
+}
+
+twitter-widget {
+  margin-left: auto;
+  margin-right: auto;
+}

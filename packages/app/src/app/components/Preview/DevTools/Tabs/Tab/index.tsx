@@ -19,11 +19,13 @@ export interface TabProps {
   pane: IViewType;
   onClick: (e: React.MouseEvent<HTMLDivElement>) => void;
   onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => void;
-  moveTab: (currentPosition: ITabPosition, nextPosition: ITabPosition) => void;
+  moveTab?: (currentPosition: ITabPosition, nextPosition: ITabPosition) => void;
+  closeTab?: (pos: ITabPosition) => void;
   index: number;
   devToolIndex: number;
   canDrag: boolean;
   status: Status | undefined;
+  options: object;
 }
 
 interface DragProps {
@@ -39,46 +41,43 @@ interface DragProps {
  */
 function useGlobalDim(isDragging: boolean) {
   const blockerRef = React.useRef(null);
-  React.useEffect(
-    () => {
-      const clean = () => {
-        if (blockerRef.current) {
-          blockerRef.current.parentElement.removeChild(blockerRef.current);
-          blockerRef.current = null;
-        }
-        if (devtools && devtools.parentElement) {
-          devtools.parentElement.style.zIndex = '0';
-        }
-      };
-
-      const devtools = document.getElementById('csb-devtools');
-      const container = document.getElementById('workbench.main.container');
-      if (devtools && container) {
-        if (isDragging) {
-          const blocker = document.createElement('div');
-          blocker.style.position = 'fixed';
-          blocker.style.top = '0';
-          blocker.style.right = '0';
-          blocker.style.left = '0';
-          blocker.style.bottom = '0';
-          blocker.style.zIndex = '1000';
-          devtools.parentElement.style.zIndex = '2000';
-          blocker.style.backgroundColor = 'rgba(0, 0, 0, 0.4)';
-
-          container.appendChild(blocker);
-
-          blockerRef.current = blocker;
-        } else {
-          clean();
-        }
+  React.useEffect(() => {
+    const clean = () => {
+      if (blockerRef.current) {
+        blockerRef.current.parentElement.removeChild(blockerRef.current);
+        blockerRef.current = null;
       }
+      if (devtools && devtools.parentElement) {
+        devtools.parentElement.style.zIndex = '0';
+      }
+    };
 
-      return () => {
+    const devtools = document.getElementById('csb-devtools');
+    const container = document.getElementById('workbench.main.container');
+    if (devtools && container) {
+      if (isDragging) {
+        const blocker = document.createElement('div');
+        blocker.style.position = 'fixed';
+        blocker.style.top = '0';
+        blocker.style.right = '0';
+        blocker.style.left = '0';
+        blocker.style.bottom = '0';
+        blocker.style.zIndex = '1000';
+        devtools.parentElement.style.zIndex = '2000';
+        blocker.style.backgroundColor = 'rgba(0, 0, 0, 0.4)';
+
+        container.appendChild(blocker);
+
+        blockerRef.current = blocker;
+      } else {
         clean();
-      };
-    },
-    [isDragging]
-  );
+      }
+    }
+
+    return () => {
+      clean();
+    };
+  }, [isDragging]);
 }
 
 export const PaneTab = ({
@@ -92,11 +91,16 @@ export const PaneTab = ({
   isDragging,
   devToolIndex,
   status,
+  closeTab,
+  index,
+  options,
 }: TabProps & DragProps) => {
   useGlobalDim(isDragging);
 
+  const title =
+    typeof pane.title === 'function' ? pane.title(options) : pane.title;
   const component = (
-    <div style={{ height: '100%' }}>
+    <div>
       <Tab
         active={active}
         onClick={onClick}
@@ -104,18 +108,23 @@ export const PaneTab = ({
         key={pane.id}
         isOver={isOver && !isDragging}
       >
-        {pane.title}
+        <div style={{ flex: 1 }}>{title}</div>
 
-        {devToolIndex !== 0 &&
-          status && (
-            <UnreadDevToolsCount status={status.type} unread={status.unread} />
-          )}
-        {false &&
-        active && ( // This will be enabled later on
-            <CloseTab>
-              <CrossIcon />
-            </CloseTab>
-          )}
+        {devToolIndex !== 0 && status && (
+          <UnreadDevToolsCount status={status.type} unread={status.unread} />
+        )}
+        {closeTab && (
+          <CloseTab
+            onClick={() =>
+              closeTab({
+                tabPosition: index,
+                devToolIndex,
+              })
+            }
+          >
+            <CrossIcon />
+          </CloseTab>
+        )}
       </Tab>
     </div>
   );
@@ -141,7 +150,7 @@ const entryTarget = {
       tabPosition: sourceItem.index,
       devToolIndex: sourceItem.devToolIndex,
     };
-    const nextPosition = {
+    const nextPosition: ITabPosition = {
       tabPosition: props.index,
       devToolIndex: props.devToolIndex,
     };
@@ -163,17 +172,15 @@ const entryTarget = {
 const collectTarget = (
   connectMonitor: DropTargetConnector,
   monitor: DropTargetMonitor
-) => {
-  return {
-    // Call this function inside render()
-    // to let React DnD handle the drag events:
-    connectDropTarget: connectMonitor.dropTarget(),
-    // You can ask the monitor about the current drag state:
-    isOver: monitor.isOver({ shallow: true }),
-    canDrop: monitor.canDrop(),
-    itemType: monitor.getItemType(),
-  };
-};
+) => ({
+  // Call this function inside render()
+  // to let React DnD handle the drag events:
+  connectDropTarget: connectMonitor.dropTarget(),
+  // You can ask the monitor about the current drag state:
+  isOver: monitor.isOver({ shallow: true }),
+  canDrop: monitor.canDrop(),
+  itemType: monitor.getItemType(),
+});
 
 const entrySource = {
   canDrag: (props: TabProps) => props.canDrag,

@@ -1,5 +1,6 @@
-import { Module } from 'cerebral';
 import HttpProvider from '@cerebral/http';
+import { Module } from 'cerebral';
+import { createContext, useContext } from 'react';
 
 import model from './model';
 import ApiProvider from './providers/Api';
@@ -19,6 +20,8 @@ import OTProvider from './providers/OT';
 import KeybindingManagerProvider from './providers/KeybindingManager';
 import SSEProvider from './providers/SSE';
 import FSSyncProvider from './providers/FSSync';
+import CodeSandboxAPIProvider from './providers/CodeSandboxAPI';
+import ExecutorProvider from './providers/Executor';
 
 import * as sequences from './sequences';
 import * as errors from './errors';
@@ -39,6 +42,12 @@ import live from './modules/live';
 import dashboard from './modules/dashboard';
 import userNotifications from './modules/user-notifications';
 
+export const Signals = createContext();
+export const Store = createContext();
+
+export const useSignals = () => useContext(Signals);
+export const useStore = () => useContext(Store);
+
 export default Module({
   model,
   state: {
@@ -50,7 +59,6 @@ export default Module({
     error: null,
     user: null,
     connected: true,
-    notifications: [],
     contributors: [],
     userMenuOpen: false,
     isLoadingZeit: false,
@@ -142,5 +150,7 @@ export default Module({
     ot: OTProvider,
     sse: SSEProvider,
     fsSync: FSSyncProvider,
+    executor: ExecutorProvider,
+    codeSandboxApi: CodeSandboxAPIProvider,
   },
 });

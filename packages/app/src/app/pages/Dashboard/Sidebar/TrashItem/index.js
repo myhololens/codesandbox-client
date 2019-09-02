@@ -3,15 +3,17 @@ import { DropTarget } from 'react-dnd';
 import TrashIcon from 'react-icons/lib/md/delete';
 
 import { withRouter } from 'react-router-dom';
-import { inject, observer } from 'mobx-react';
+import { inject, observer } from 'app/componentConnectors';
 
 import Item from '../Item';
+import { DELETE_SANDBOX_DROP_KEY } from '../../Content/SandboxCard';
 
-const TrashItem = ({ isOver, canDrop, connectDropTarget }) =>
+const TrashItem = ({ currentPath, isOver, canDrop, connectDropTarget }) =>
   connectDropTarget(
     <div>
       <Item
-        path={'/dashboard/trash'}
+        active={currentPath === '/dashboard/trash'}
+        path="/dashboard/trash"
         Icon={TrashIcon}
         name="Trash"
         style={
@@ -28,7 +30,8 @@ export const entryTarget = {
     // Check if only child is selected:
     if (!monitor.isOver({ shallow: true })) return {};
 
-    return { delete: true };
+    // Used in SandboxCard
+    return { [DELETE_SANDBOX_DROP_KEY]: true };
   },
 
   canDrop: (props, monitor) => {

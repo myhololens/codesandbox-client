@@ -1,4 +1,3 @@
-
 import Template, { ParsedConfigurationFiles } from './template';
 import { decorateSelector } from '../theme';
 import configurations from './configuration';
@@ -14,9 +13,7 @@ class VueTemplate extends Template {
   }
 
   // eslint-disable-next-line no-unused-vars
-  getHTMLEntries(configurationFiles: {
-    [type: string]: Object;
-  }): Array<string> {
+  getHTMLEntries(configurationFiles: ParsedConfigurationFiles): Array<string> {
     return ['/static/index.html', '/index.html'];
   }
 }
@@ -35,5 +32,6 @@ export default new VueTemplate(
     distDir: 'dist',
     main: true,
     popular: true,
+    mainFile: ['/src/main.js', '/src/main.ts'],
   }
 );

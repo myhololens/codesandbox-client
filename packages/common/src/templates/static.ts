@@ -1,4 +1,3 @@
-
 import Template from './template';
 import { decorateSelector } from '../theme';
 
@@ -10,6 +9,7 @@ export default new Template(
   decorateSelector(() => '#3AA855'),
   {
     showOnHomePage: true,
+    distDir: './',
     main: false,
     mainFile: ['/index.html'],
   }
